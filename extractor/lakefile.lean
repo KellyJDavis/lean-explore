@@ -42,9 +42,8 @@ require plausible from git
 require HepLean from git
   "https://github.com/HEPLean/HepLean.git" @ "v4.15.0"
 
--- Require ProofWidgets4 (for interactive proof widgets)
-require proofwidgets from git
-  "https://github.com/leanprover-community/ProofWidgets4.git" @ "v0.0.49"
+-- Note: ProofWidgets4 is provided as a transitive dependency via mathlib (v0.0.48)
+-- We don't need to require it directly here
 
 -- Require quote4 (transitive dep, now made direct to override version)
 require Qq from git

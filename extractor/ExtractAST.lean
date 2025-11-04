@@ -670,7 +670,7 @@ def getTargetLibraries (config : ExtractorConfig) : IO (Array LibraryToProcess) 
   let packagesDirPath ← Path.toAbsolute Path.packagesDir
   libs := libs.push { name := "Batteries", srcRootDir := packagesDirPath / "batteries" }
   libs := libs.push { name := "Mathlib", srcRootDir   := packagesDirPath / "mathlib" }
-  libs := libs.push { name := "PhysLean", srcRootDir  := packagesDirPath / "HepLean" }
+  libs := libs.push { name := "HepLean", srcRootDir  := packagesDirPath / "HepLean" }
 
   -- Verify existence of srcRootDir for all configured libraries
   let mut validLibs : Array LibraryToProcess := #[]

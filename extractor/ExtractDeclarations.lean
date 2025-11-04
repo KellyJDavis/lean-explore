@@ -3,7 +3,7 @@
 import Lean
 import Mathlib              -- Ensures Mathlib modules are loaded and accessible for analysis.
 import Batteries.Lean.Json
-import Batteries.Data.NameSet
+import Std.Data.HashSet
 import Lean.DocString           -- Provides `findDocString?`
 import Lean.Environment         -- Provides `Environment` and related methods.
 import Lean.Data.Lsp.Internal   -- Provides `DeclarationRanges` (via `References`).
@@ -45,10 +45,10 @@ The extracted data is output into two JSONL (JSON Lines) files:
 Recursively traverses a Lean expression (`e`) to find all direct constant dependencies.
 
 Identifies `Expr.const` nodes, filtering out internal names and universe level constants
-(e.g., `Type`, `Prop`, `Sort`). Results are collected into a `NameSet`.
+(e.g., `Type`, `Prop`, `Sort`). Results are collected into a `Std.HashSet Name`.
 -/
-partial def findDirectDependencies (e : Expr) : MetaM NameSet := do
-  let depRef ← IO.mkRef NameSet.empty
+partial def findDirectDependencies (e : Expr) : MetaM (Std.HashSet Name) := do
+  let depRef ← IO.mkRef (Std.HashSet.empty : Std.HashSet Name)
   forEachExpr' e fun subExpr => do
     if subExpr.isConst then
       let constName := subExpr.constName!
@@ -63,9 +63,9 @@ partial def findDirectDependencies (e : Expr) : MetaM NameSet := do
 Processes the Lean environment to extract declaration and dependency information,
 writing results to `hDecls` (declarations) and `hDeps` (dependencies).
 Reports progress based on `totalToProcess`.
-Accepts a `NameSet` of `targetRootNames` to filter declarations by module root.
+Accepts a `Std.HashSet Name` of `targetRootNames` to filter declarations by module root.
 -/
-def extractData (hDecls hDeps : Handle) (totalToProcess : Nat) (targetRootNames : NameSet) : CoreM Unit := do
+def extractData (hDecls hDeps : Handle) (totalToProcess : Nat) (targetRootNames : Std.HashSet Name) : CoreM Unit := do
   let env ← getEnv
   let srcSearchPath ← initSrcSearchPath -- IO action lifted to CoreM.
   let allModules := env.allImportedModuleNames
@@ -81,7 +81,7 @@ def extractData (hDecls hDeps : Handle) (totalToProcess : Nat) (targetRootNames 
 
   env.constants.forM fun name constInfo => do
     let moduleIdx? : Option ModuleIdx := env.getModuleIdxFor? name
-    let moduleName? : Option Name := moduleIdx?.bind fun idx => allModules[idx]?
+    let moduleName? : Option Name := moduleIdx?.bind fun idx => allModules.get? idx.toNat
 
     -- Skip internal declarations.
     if name.isInternal then return
@@ -172,13 +172,13 @@ def extractData (hDecls hDeps : Handle) (totalToProcess : Nat) (targetRootNames 
         let typeDeps ← findDirectDependencies constInfo.type
         let valueDeps ← match constInfo.value? with
           | some value => findDirectDependencies value
-          | none => pure NameSet.empty
+          | none => pure (Std.HashSet.empty : Std.HashSet Name)
         return typeDeps.union valueDeps
 
     for targetName in dependencyResult.toArray do
       -- Apply similar filters to dependencies: in target list, not self, not internal.
       let targetModuleIdx? : Option ModuleIdx := env.getModuleIdxFor? targetName
-      let targetModuleName? : Option Name := targetModuleIdx?.bind fun idx => allModules[idx]?
+      let targetModuleName? : Option Name := targetModuleIdx?.bind fun idx => allModules.get? idx.toNat
 
       if targetName.isInternal then continue -- Skip internal dependencies.
       if targetName == name then continue -- Skip self-dependencies.
@@ -227,7 +227,7 @@ unsafe def main : IO Unit := do
       { module := `Mathlib },
       { module := `Batteries },
       { module := `FLT },
-      { module := `PhysLean },
+      { module := `HepLean },
       { module := `Std }
     ]
 
@@ -238,13 +238,13 @@ unsafe def main : IO Unit := do
     let env ← Lean.importModules imports (opts := opts) (trustLevel := 0)
     IO.println s!"Specified modules imported successfully. Environment created."
 
-    let targetRootNames : NameSet := .ofList [
-      `Mathlib, `Batteries, `PhysLean, `Std, `Init, `Lean, `FLT
+    let targetRootNames : Std.HashSet Name := Std.HashSet.ofList [
+      `Mathlib, `Batteries, `HepLean, `Std, `Init, `Lean, `FLT
     ]
 
-    let targetRootNamesList : List Name := [`Mathlib, `Batteries, `PhysLean, `Std, `Init, `Lean, `FLT] -- Keep an ordered list for printing
+    let targetRootNamesList : List Name := [`Mathlib, `Batteries, `HepLean, `Std, `Init, `Lean, `FLT] -- Keep an ordered list for printing
     let initialCountsByRoot : Std.HashMap Name Nat := Id.run do
-      let mut map := Std.HashMap.emptyWithCapacity targetRootNamesList.length
+      let mut map := Std.HashMap.empty
       for rootName in targetRootNamesList do
         map := map.insert rootName 0
       return map
@@ -257,7 +257,7 @@ unsafe def main : IO Unit := do
     env.constants.forM fun name _ => do -- Only name needed for filters.
       if name.isInternal then return () -- Skip internal names.
       -- Apply same filtering as in `extractData` for accurate count.
-      match env.getModuleIdxFor? name >>= fun idx => allModules[idx]? with
+      match env.getModuleIdxFor? name >>= fun idx => allModules.get? idx.toNat with
       | some modName =>
         let rootName := modName.getRoot
         if targetRootNames.contains rootName then
