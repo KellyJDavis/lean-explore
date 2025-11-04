@@ -13,7 +13,7 @@ Both scripts can be run independently, but both should be executed before runnin
 ## Prerequisites
 
 ### Required Software
-- **Lean 4** (version 4.19.0, as specified in `lean-toolchain`)
+- **Lean 4** (version 4.15.0, as specified in `lean-toolchain`)
 - **Lake** (Lean's build tool, included with Lean 4)
 - **elan** (Lean version manager, if not using system-wide Lean installation)
 
@@ -321,7 +321,7 @@ Outputs (used by Python scripts):
 **Error: "Module not found"**
 - Ensure all dependencies are downloaded: `lake build`
 - Check that `lakefile.lean` has all required dependencies
-- Verify the Lean toolchain version matches `lean-toolchain` (4.19.0)
+- Verify the Lean toolchain version matches `lean-toolchain` (4.15.0)
 
 **Error: "Out of memory"**
 - Mathlib is very large; ensure you have at least 8GB+ RAM available
@@ -377,7 +377,7 @@ Outputs (used by Python scripts):
 **Purpose**: Configures Lake package dependencies.
 
 **Notable dependencies**:
-- All packages pinned to Lean 4.19.0
+- All packages pinned to Lean 4.15.0
 - Mathlib, Batteries, PhysLean, FLT configured as direct dependencies
 - Additional transitive dependencies automatically resolved
 
@@ -387,7 +387,7 @@ Outputs (used by Python scripts):
 
 **Purpose**: Specifies the exact Lean version to use.
 
-**Content**: `leanprover/lean4:v4.19.0`
+**Content**: `leanprover/lean4:v4.15.0`
 
 **Note**: Must match the version expected by dependencies in `lakefile.lean`.
 
