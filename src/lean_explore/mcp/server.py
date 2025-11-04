@@ -28,7 +28,7 @@ from lean_explore import defaults
 # Import backend clients/services
 # Import tools to ensure they are registered with the mcp_app
 from lean_explore.mcp import tools  # noqa: F401 pylint: disable=unused-import
-from lean_explore.mcp.app import BackendServiceType, mcp_app
+from lean_explore.mcp.app import mcp_app
 
 error_console = RichConsole(stderr=True)
 
@@ -122,10 +122,8 @@ def main():
 
     logger.info(f"Starting Lean Explore MCP Server with backend: {args.backend}")
 
-    backend_service_instance: BackendServiceType = None
-
     if args.backend == "local":
-        # Pre-check for essential data files before initializing LocalService
+        # Pre-check for essential data files before allowing initialization
         required_files_info = {
             "Database file": defaults.DEFAULT_DB_PATH,
             "FAISS index file": defaults.DEFAULT_FAISS_INDEX_PATH,
@@ -157,59 +155,11 @@ def main():
             sys.exit(1)
             return
 
-        # If pre-checks pass, proceed to initialize LocalService
-        try:
-            from lean_explore.local.service import Service
-
-            backend_service_instance = Service()
-            logger.info("Local backend service initialized successfully.")
-        except FileNotFoundError as e:
-            # This catch is now for FNFEs raised by LocalService for *other* reasons,
-            # as the primary asset checks are done above.
-            msg = (
-                "LocalService initialization failed due to an unexpected missing file:"
-                f" {e}\n"
-                "This could indicate an issue beyond the core data toolchain files "
-                "or a problem during service initialization that was not caught by"
-                " pre-checks."
-            )
-            _emit_critical_logrecord(msg)
-            logger.critical(msg)
-            sys.exit(1)
-            return
-        except (
-            RuntimeError
-        ) as e:  # Catch other specific runtime errors from LocalService
-            msg = f"LocalService initialization failed: {e}"
-            _emit_critical_logrecord(msg)
-            logger.critical(msg)
-            sys.exit(1)
-            return
-        except (
-            Exception
-        ) as e:  # Catch all other unexpected errors during LocalService init
-            msg = f"An unexpected error occurred while initializing LocalService: {e}"
-            _emit_critical_logrecord(msg)
-            logger.critical(msg, exc_info=True)
-            sys.exit(1)
-            return
-
     elif args.backend == "api":
         if not args.api_key:
             print(
                 "--api-key is required when using the 'api' backend.", file=sys.stderr
             )
-            sys.exit(1)
-            return
-        try:
-            from lean_explore.api.client import Client
-
-            backend_service_instance = Client(api_key=args.api_key)
-            logger.info("API client backend initialized successfully.")
-        except Exception as e:
-            msg = f"An unexpected error occurred while initializing APIClient: {e}"
-            _emit_critical_logrecord(msg)
-            logger.critical(msg, exc_info=True)
             sys.exit(1)
             return
 
@@ -220,15 +170,16 @@ def main():
         )
         sys.exit(1)
 
-    if backend_service_instance is None:
-        # This case implies a logic error if not caught by specific backend init fails
-        logger.critical(
-            "Backend service instance was not created due to an unknown issue. Exiting."
-        )
-        sys.exit(1)
-
-    mcp_app._lean_explore_backend_service = backend_service_instance
-    logger.info(f"Backend service ({args.backend}) attached to MCP app state.")
+    # Store initialization parameters instead of initializing the service immediately
+    # This allows the MCP server to start listening and respond to initialize
+    # requests quickly, while heavy initialization (model loading) happens
+    # asynchronously in the lifespan manager
+    mcp_app._lean_explore_backend_type = args.backend
+    mcp_app._lean_explore_backend_api_key = args.api_key if args.backend == "api" else None
+    logger.info(
+        f"Backend initialization parameters ({args.backend}) set on MCP app. "
+        "Service will be initialized asynchronously in lifespan."
+    )
 
     try:
         logger.info("Running MCP server with stdio transport...")

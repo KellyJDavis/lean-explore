@@ -29,6 +29,10 @@ logger = logging.getLogger(__name__)
 async def _get_backend_from_context(ctx: MCPContext) -> BackendServiceType:
     """Retrieves the backend service from the MCP context.
 
+    If the backend is still initializing, this function will wait for it
+    to complete. This allows the server to respond to initialize requests
+    immediately while heavy initialization happens in the background.
+
     Args:
         ctx: The MCP context provided to the tool.
 
@@ -42,13 +46,35 @@ async def _get_backend_from_context(ctx: MCPContext) -> BackendServiceType:
                       indicating a server configuration issue.
     """
     app_ctx: AppContext = ctx.request_context.lifespan_context
-    backend = app_ctx.backend_service
-    if not backend:
+
+    # If backend is already initialized, return it immediately
+    if app_ctx.backend_service is not None:
+        return app_ctx.backend_service
+
+    # Otherwise, wait for initialization to complete
+    if app_ctx._backend_future is None:
         logger.error(
-            "MCP Tool Error: Backend service is not available in lifespan_context."
+            "MCP Tool Error: Backend service future not available in lifespan_context."
         )
         raise RuntimeError("Backend service not configured or available for MCP tool.")
-    return backend
+
+    logger.debug("Backend service still initializing, waiting...")
+    try:
+        backend = await app_ctx._backend_future
+        if not backend:
+            logger.error(
+                "MCP Tool Error: Backend service is None after initialization."
+            )
+            raise RuntimeError("Backend service not configured or available for MCP tool.")
+        return backend
+    except Exception as e:
+        logger.error(
+            f"MCP Tool Error: Backend service initialization failed: {e}",
+            exc_info=True,
+        )
+        raise RuntimeError(
+            f"Backend service initialization failed: {e}"
+        ) from e
 
 
 def _prepare_mcp_result_item(backend_item: APISearchResultItem) -> APISearchResultItem:
