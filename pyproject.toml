@@ -49,6 +49,10 @@ dependencies = [
     # MCP Server Components
     "mcp>=1.9.0,<1.12.3",
 
+    # HTTP Server Components
+    "fastapi>=0.100.0",
+    "uvicorn[standard]>=0.23.0",
+
     # Utilities
     "tqdm>=4.60",
     "requests>=2.25.0",

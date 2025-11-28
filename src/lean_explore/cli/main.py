@@ -13,6 +13,7 @@ from typing import List, Optional
 
 import httpx
 import typer
+import uvicorn
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
@@ -22,6 +23,7 @@ from lean_explore.cli import (
     config_utils,
     data_commands,  # For data management subcommands
 )
+from lean_explore.http.server import app as http_app, initialize_backend
 from lean_explore.shared.models.api import APISearchResponse
 
 # Import the specific command function and its async wrapper from agent.py
@@ -44,6 +46,12 @@ mcp_app = typer.Typer(
     name="mcp", help="Manage and run the Model Context Protocol (MCP) server."
 )
 app.add_typer(mcp_app)
+
+http_app = typer.Typer(
+    name="http",
+    help="Manage and run a Hypertext Transfer Protocol (HTTP) server.",
+)
+app.add_typer(http_app)
 
 # Add the data_commands.app as a subcommand group named "data"
 app.add_typer(
@@ -685,6 +693,117 @@ def mcp_serve_command(
             f"[bold red]An error occurred while trying to launch or run the MCP "
             f"server: {e}[/bold red]"
         )
+
+
+@http_app.command("serve")
+def http_serve_command(
+    backend: str = typer.Option(
+        "local",
+        "--backend",
+        "-b",
+        help="Backend to use for the HTTP server: 'api' or 'local'. Default is 'local'.",
+        case_sensitive=False,
+        show_choices=True,
+    ),
+    api_key_override: Optional[str] = typer.Option(
+        None,
+        "--api-key",
+        help="API key to use if backend is 'api'. Overrides stored key. "
+        "Not used for 'local' backend.",
+    ),
+    host: str = typer.Option(
+        "localhost",
+        "--host",
+        help="The host address to bind the server to. Default is 'localhost'.",
+    ),
+    port: int = typer.Option(
+        8001,
+        "--port",
+        help="The port number for the server. Default is '8001'.",
+    ),
+):
+    """Launch the Lean Explore HTTP (Hypertext Transfer Protocol) server.
+
+    The server communicates via HTTP and provides Lean search functionalities as HTTP
+    endpoints. The actual check for local data presence is handled by the
+    'lean_explore.http.server' module when it starts.
+
+    Args:
+        backend: The backend choice ('api' or 'local').
+        api_key_override: Optional API key to override any stored key.
+    """
+    # Validate backend
+    if backend.lower() not in ["api", "local"]:
+        error_console.print(
+            f"[bold red]Invalid backend: '{backend}'. Must be 'api' or 'local'.[/bold red]"
+        )
+        raise typer.Abort()
+
+    # Handle API key for 'api' backend
+    effective_api_key = None
+    if backend.lower() == "api":
+        effective_api_key = api_key_override or config_utils.load_api_key()
+        if not effective_api_key:
+            error_console.print(
+                "[bold red]Lean Explore API key is required for 'api' backend."
+                "[/bold red]\n"
+                "Please configure it using `leanexplore configure api-key` "
+                "or provide it with the `--api-key` option for this command."
+            )
+            raise typer.Abort()
+    elif backend.lower() == "local":
+        error_console.print(
+            "[dim]Attempting to start HTTP server with 'local' backend. "
+            "The server will verify local data availability.[/dim]"
+        )
+
+    # Initialize the backend
+    try:
+        initialize_backend(backend.lower(), effective_api_key)
+    except ValueError as e:
+        error_console.print(f"[bold red]{e}[/bold red]")
+        raise typer.Abort()
+    except RuntimeError as e:
+        error_console.print(f"[bold red]{e}[/bold red]")
+        raise typer.Abort()
+    except Exception as e:
+        error_console.print(
+            f"[bold red]Failed to initialize backend: {e}[/bold red]"
+        )
+        raise typer.Abort()
+
+    # Start the server
+    console.print(
+        f"[green]Starting HTTP server on {host}:{port} with '{backend}' backend...[/green]"
+    )
+    console.print(
+        f"[dim]The server will be accessible at http://{host}:{port}/api/v1[/dim]"
+    )
+    console.print("[dim]Press Ctrl+C to stop the server.[/dim]")
+
+    # Use uvicorn.run() with app as module string to avoid re-execution issues
+    # Clear sys.argv first to prevent uvicorn from parsing command-line arguments
+    original_argv = sys.argv[:]
+    try:
+        # Clear sys.argv to prevent uvicorn from parsing arguments
+        sys.argv = [sys.argv[0]]
+        
+        # Pass app as module string to avoid uvicorn trying to re-execute the script
+        uvicorn.run(
+            "lean_explore.http.server:app",
+            host=host,
+            port=port,
+            log_level="info",
+        )
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Server stopped by user.[/yellow]")
+    except Exception as e:
+        error_console.print(
+            f"[bold red]An error occurred while running the HTTP server: {e}[/bold red]"
+        )
+        raise typer.Exit(code=1)
+    finally:
+        sys.argv = original_argv  # Restore original argv
 
 
 if __name__ == "__main__":
