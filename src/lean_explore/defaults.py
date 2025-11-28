@@ -11,6 +11,8 @@ import os
 import pathlib
 from typing import Final
 
+import toml
+
 # --- User-Specific Data Directory ---
 # Define a base directory within the user's home folder to store
 # downloaded data assets for lean_explore.
@@ -68,14 +70,45 @@ DEFAULT_DB_URL: Final[str] = f"sqlite:///{DEFAULT_DB_PATH.resolve()}"
 # These constants are used by the data management commands to locate and
 # manage remote toolchain data assets.
 
-# Default URL for the master manifest file on R2.
+# Helper function to get the project version from pyproject.toml
+def _get_project_version() -> str:
+    """Reads the project version from pyproject.toml.
+    
+    Returns:
+        The version string from pyproject.toml.
+    """
+    # Get the path to pyproject.toml relative to this file
+    # defaults.py is at src/lean_explore/defaults.py
+    # pyproject.toml is at the project root
+    current_file = pathlib.Path(__file__)
+    project_root = current_file.parent.parent.parent
+    pyproject_path = project_root / "pyproject.toml"
+    
+    try:
+        with open(pyproject_path, "r", encoding="utf-8") as f:
+            pyproject_data = toml.load(f)
+        return pyproject_data["project"]["version"]
+    except (OSError, KeyError, toml.TomlDecodeError) as e:
+        # Fallback to a default version if reading fails
+        # This should not happen in normal operation
+        raise RuntimeError(
+            f"Failed to read version from pyproject.toml at {pyproject_path}: {e}"
+        ) from e
+
+
+# Get the project version for constructing URLs
+_PROJECT_VERSION: Final[str] = _get_project_version()
+
+# Default URL for the master manifest file on GitHub releases.
 R2_MANIFEST_DEFAULT_URL: Final[str] = (
-    "https://pub-48b75babc4664808b15520033423c765.r2.dev/manifest.json"
+    f"https://github.com/KellyJDavis/lean-explore/releases/download/v{_PROJECT_VERSION}/manifest.json"
 )
 
-# Base URL for accessing assets on R2. Specific file paths from the manifest
+# Base URL for accessing assets on GitHub releases. Specific file paths from the manifest
 # will be appended to this base.
-R2_ASSETS_BASE_URL: Final[str] = "https://pub-48b75babc4664808b15520033423c765.r2.dev/"
+R2_ASSETS_BASE_URL: Final[str] = (
+    f"https://github.com/KellyJDavis/lean-explore/releases/download/v{_PROJECT_VERSION}/"
+)
 
 # Filename for storing the currently selected active toolchain version.
 # This file will reside in LEAN_EXPLORE_USER_DATA_DIR.
