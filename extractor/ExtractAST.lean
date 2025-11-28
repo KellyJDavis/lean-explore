@@ -668,9 +668,10 @@ def getTargetLibraries (config : ExtractorConfig) : IO (Array LibraryToProcess) 
 
   -- Lake packages
   let packagesDirPath ← Path.toAbsolute Path.packagesDir
-  libs := libs.push { name := "Batteries", srcRootDir := packagesDirPath / "batteries" }
-  libs := libs.push { name := "Mathlib", srcRootDir   := packagesDirPath / "mathlib" }
-  libs := libs.push { name := "PhysLean", srcRootDir  := packagesDirPath / "PhysLean" }
+  libs := libs.push { name := "Batteries", srcRootDir := packagesDirPath / "batteries" / "Batteries" }
+  libs := libs.push { name := "Mathlib", srcRootDir   := packagesDirPath / "mathlib" / "Mathlib" }
+  libs := libs.push { name := "HepLean", srcRootDir  := packagesDirPath / "HepLean" / "HepLean" }
+  libs := libs.push { name := "FLT", srcRootDir      := packagesDirPath / "FLT" / "FLT" }
 
   -- Verify existence of srcRootDir for all configured libraries
   let mut validLibs : Array LibraryToProcess := #[]
@@ -767,6 +768,10 @@ def processProject : IO Unit := do
         | "Init"   => (Name.mkSimple "Init").append relativeModuleName
         | "Std"    => (Name.mkSimple "Std").append relativeModuleName
         | "Lean"   => (Name.mkSimple "Lean").append relativeModuleName
+        | "Batteries" => (Name.mkSimple "Batteries").append relativeModuleName
+        | "Mathlib" => (Name.mkSimple "Mathlib").append relativeModuleName
+        | "HepLean" => (Name.mkSimple "HepLean").append relativeModuleName
+        | "FLT" => (Name.mkSimple "FLT").append relativeModuleName
         | _        => relativeModuleName
 
       let oleanPath? ← try
@@ -835,13 +840,19 @@ def processProject : IO Unit := do
         | Except.ok processOutput =>
           if processOutput.exitCode != 0 then
             overallFailedTasksCount := overallFailedTasksCount + 1
-            IO.eprintln s!"ERROR (worker process) for '{taskDescr}' exited with code {processOutput.exitCode}."
-            unless processOutput.stdout.isEmpty do IO.eprintln s!"    Stdout:\n---\n{processOutput.stdout}\n---"
-            unless processOutput.stderr.isEmpty do IO.eprintln s!"    Stderr:\n---\n{processOutput.stderr}\n---"
+            IO.eprintln s!"[ERROR] Worker process for '{taskDescr}' exited with code {processOutput.exitCode}."
+            unless processOutput.stdout.isEmpty do
+              IO.eprintln s!"[ERROR] Stdout:\n---\n{processOutput.stdout}\n---"
+            unless processOutput.stderr.isEmpty do
+              IO.eprintln s!"[ERROR] Stderr:\n---\n{processOutput.stderr}\n---"
+            -- Continue processing other files even if this one failed
           else
             overallProcessedCount := overallProcessedCount + 1
-            if !(← astJsonPath.pathExists) then IO.eprintln s!"  [VERIFY ERROR] AST JSON file NOT found for '{taskDescr}': {astJsonPath}"
-            if !(← depPathsPath.pathExists) then IO.eprintln s!"  [VERIFY ERROR] Dep Paths file NOT found for '{taskDescr}': {depPathsPath}"
+            if !(← astJsonPath.pathExists) then
+              IO.eprintln s!"[VERIFY ERROR] AST JSON file NOT found for '{taskDescr}': {astJsonPath}"
+              overallFailedTasksCount := overallFailedTasksCount + 1
+            if !(← depPathsPath.pathExists) then
+              IO.eprintln s!"[VERIFY ERROR] Dep Paths file NOT found for '{taskDescr}': {depPathsPath}"
 
         let filesHandledSoFar := overallProcessedCount + overallFailedTasksCount
         let printIntervalMessage := (filesHandledSoFar > 0 && (filesHandledSoFar % 10 == 0)) || (filesHandledSoFar == totalFilesToProcess && filesHandledSoFar > previousFilesHandled)
@@ -909,8 +920,10 @@ def processProject : IO Unit := do
   IO.println s!"Total processing time: {formatDurationMs totalDurationMs}."
 
   if overallFailedTasksCount > 0 then
-    IO.eprintln s!"{overallFailedTasksCount} tasks/processes reported failure. Review error messages above."
-    Process.exit 1
+    IO.eprintln s!"[WARNING] {overallFailedTasksCount} tasks/processes reported failure. Review error messages above."
+    IO.eprintln s!"[INFO] Successfully processed: {overallProcessedCount}/{totalFilesToProcess} files."
+    IO.eprintln s!"[INFO] You can re-run this script to retry failed files (it will skip already-processed files)."
+    -- Don't exit with error code - allow partial completion and retry
   else if overallProcessedCount == totalFilesToProcess then
     IO.println "All targeted files processed successfully."
     IO.println s!"Please check the directory '{baseDojoDir}' for output files."

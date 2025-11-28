@@ -52,7 +52,7 @@ except ImportError:
 
 # --- Project Model & Config/LLM Imports ---
 try:
-    from dev_tools.config import APP_CONFIG, get_gemini_api_key
+    from dev_tools.config import APP_CONFIG
     from dev_tools.llm_caller import GeminiClient, GeminiCostTracker
     from lean_explore.shared.models.db import Declaration, StatementGroup
 except ImportError as e:
@@ -380,11 +380,6 @@ async def generate_summaries_for_statement_groups(
         "Max items per gather batch for summaries: %s", max_gather_batch or "No limit"
     )
 
-    api_key = get_gemini_api_key()
-    if not api_key:
-        logger.error("GEMINI_API_KEY not found. Cannot initialize LLM client.")
-        return False
-
     client: GeminiClient
     try:
         llm_config = APP_CONFIG.get("llm", {})
@@ -396,9 +391,8 @@ async def generate_summaries_for_statement_groups(
             )
             return False
 
-        cost_tracker = GeminiCostTracker(model_costs_override=APP_CONFIG.get("costs"))
+        cost_tracker = GeminiCostTracker()
         client = GeminiClient(
-            api_key=api_key,
             cost_tracker=cost_tracker,
             default_generation_model=generation_model_name,
         )
@@ -406,9 +400,24 @@ async def generate_summaries_for_statement_groups(
             "GeminiClient initialized for summaries, using Generation Model: %s",
             generation_model_name,
         )
+    except ValueError as ve:
+        logger.error(
+            "Failed to initialize GeminiClient for summaries: %s. This might happen if the "
+            "model name is invalid or the API key is missing.",
+            ve,
+            exc_info=True,
+        )
+        logger.error(
+            "Please ensure 'llm.generation_model' is correctly specified in your "
+            "'config.yml' (e.g., 'gemini-2.0-flash') and that GEMINI_API_KEY "
+            "environment variable is set."
+        )
+        return False
     except Exception as e:
         logger.error(
-            "Failed to initialize GeminiClient for summaries: %s", e, exc_info=True
+            "An unexpected error occurred while initializing GeminiClient for summaries: %s",
+            e,
+            exc_info=True,
         )
         return False
 

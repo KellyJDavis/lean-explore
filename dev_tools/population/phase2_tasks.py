@@ -441,27 +441,10 @@ def _process_single_file(
         )
         return []
 
-    first_segment = path_obj_effective.parts[0]
-    if "/" in effective_rel_str:
-        package_identifier_for_ast_dir = first_segment
-    else:  # Handles files directly in the root of a "library" like Init.lean, Std.lean
-        package_identifier_for_ast_dir = first_segment.removesuffix(".lean")
-
-    # Packages whose ASTs are in a subdir named after the package itself, e.g.,
-    # AST/Mathlib/Mathlib/...
-    doubled_name_pkgs = {
-        "Mathlib",
-        "Batteries",
-        "PhysLean",
-    }
-    final_ast_path_str_relative_to_ast_base: str
-
-    if package_identifier_for_ast_dir in doubled_name_pkgs:
-        final_ast_path_str_relative_to_ast_base = str(
-            Path(package_identifier_for_ast_dir) / effective_rel_str
-        )
-    else:
-        final_ast_path_str_relative_to_ast_base = effective_rel_str
+    # The AST files are stored directly under the library name directory,
+    # e.g., data/AST/Mathlib/NumberTheory/... (not data/AST/Mathlib/Mathlib/...)
+    # So we use the effective_rel_str directly
+    final_ast_path_str_relative_to_ast_base = effective_rel_str
 
     ast_json_file_abs = (
         ast_json_base / final_ast_path_str_relative_to_ast_base

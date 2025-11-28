@@ -23,6 +23,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
 
+# --- Project Setup for DB ---
+DEFAULT_DB_URL_STR = "sqlite:///data/lean_explore_data.db"
+
 # --- Project Path Setup for Imports ---
 # (Ensure 'sys' and 'from pathlib import Path' have been imported above this block)
 _SCRIPT_DIR = Path(__file__).resolve().parent
@@ -58,8 +61,7 @@ try:
     # For 'lean_explore' modules, ensure 'lean_explore' is installed
     # (e.g., 'pip install -e .') or the 'src/' directory is added to sys.path.
     # 'pip install -e .' is recommended.
-    # For 'dev_tools.llm_caller', ensure PROJECT_ROOT is in sys.path.
-    from config import APP_CONFIG, get_gemini_api_key
+    from config import APP_CONFIG
 
     from dev_tools.llm_caller import GeminiClient, GeminiCostTracker
     from lean_explore.shared.models.db import (
@@ -116,7 +118,7 @@ DEFAULT_PROMPT_TEMPLATE_PATH = "scripts/prompt_template.txt"
 
 # Library categorization constants based on the first path component of source_file
 FOUNDATIONAL_LIBRARY_COMPONENTS = {"Init", "Std", "Lean", "Batteries"}
-THEORY_LIBRARY_COMPONENTS = {"Mathlib", "PhysLean"}
+THEORY_LIBRARY_COMPONENTS = {"Mathlib", "HepLean", "FLT"}
 
 
 # --- Data Structures ---
@@ -277,14 +279,46 @@ def load_group_graph_data(
         gp_id: [] for gp_id in groups_to_process_ids
     }
 
-    stmt_group_deps_query = select(
-        StatementGroupDependency.source_statement_group_id,
-        StatementGroupDependency.target_statement_group_id,
-    ).where(
-        StatementGroupDependency.source_statement_group_id.in_(groups_to_process_ids),
-        StatementGroupDependency.target_statement_group_id.in_(groups_to_process_ids),
+    # SQLite has a limit on the number of variables in a query (~999 by default).
+    # We batch the source IDs and filter target IDs in Python to avoid exceeding the limit.
+    SQLITE_VARIABLE_LIMIT = 999
+    BATCH_SIZE = SQLITE_VARIABLE_LIMIT - 50  # Use 949 for safety margin
+    groups_list = list(groups_to_process_ids)
+    direct_group_dependencies: List[Tuple[int, int]] = []
+
+    logger.info(
+        "Loading group dependencies for %d groups (using batches of %d to avoid SQLite variable limit)...",
+        len(groups_list),
+        BATCH_SIZE,
     )
-    direct_group_dependencies = session.execute(stmt_group_deps_query).all()
+
+    for i in range(0, len(groups_list), BATCH_SIZE):
+        batch = groups_list[i : i + BATCH_SIZE]
+        batch_set = set(batch)
+        # Only filter on source IDs in the query to avoid exceeding variable limit
+        # We'll filter target IDs in Python below
+        stmt_group_deps_query = select(
+            StatementGroupDependency.source_statement_group_id,
+            StatementGroupDependency.target_statement_group_id,
+        ).where(
+            StatementGroupDependency.source_statement_group_id.in_(batch_set),
+        )
+        batch_results = session.execute(stmt_group_deps_query).all()
+        # Filter in Python to only include dependencies where target is in groups_to_process_ids
+        # (source is already filtered by the query since batch_set is a subset of groups_to_process_ids)
+        filtered_batch = [
+            (src_id, tgt_id)
+            for src_id, tgt_id in batch_results
+            if tgt_id in groups_to_process_ids
+        ]
+        direct_group_dependencies.extend(filtered_batch)
+        logger.debug(
+            "Loaded batch %d/%d: %d dependencies found (filtered to %d relevant)",
+            (i // BATCH_SIZE) + 1,
+            (len(groups_list) + BATCH_SIZE - 1) // BATCH_SIZE,
+            len(batch_results),
+            len(filtered_batch),
+        )
     logger.info(
         "Loaded %d group dependency links for processing candidates.",
         len(direct_group_dependencies),
@@ -682,10 +716,6 @@ async def process_statement_groups_with_llm(
         max_gather_batch = None
     logger.info("Max items per gather batch: %s", max_gather_batch or "No limit")
 
-    api_key = get_gemini_api_key()
-    if not api_key:
-        logger.error("GEMINI_API_KEY not found in environment or configuration.")
-        return False
     client: GeminiClient
     try:
         llm_config = APP_CONFIG.get("llm", {})
@@ -694,38 +724,31 @@ async def process_statement_groups_with_llm(
         if not generation_model_name:
             logger.error(
                 "Configuration error: 'llm.generation_model' is not set in your "
-                "config.yml or via the DEFAULT_GENERATION_MODEL environment variable. "
-                "Cannot initialize GeminiClient."
+                "config.yml. Cannot initialize GeminiClient."
             )
             return False  # Abort if model name isn't found in the loaded config
 
-        cost_tracker = GeminiCostTracker(model_costs_override=APP_CONFIG.get("costs"))
+        cost_tracker = GeminiCostTracker()
         client = GeminiClient(
-            api_key=api_key,
             cost_tracker=cost_tracker,
             default_generation_model=generation_model_name,
         )
-        # This log line should now correctly reflect the model passed.
-        # If GeminiClient sets an attribute like 'self.default_generation_model',
-        # this will show it.
         logger.info(
             "GeminiClient initialized to use Generation Model: %s",
             generation_model_name,
         )
 
-    except (
-        ValueError
-    ) as ve:  # Catch the specific ValueError from GeminiClient if it still occurs
+    except ValueError as ve:
         logger.error(
             "Failed to initialize GeminiClient: %s. This might happen if the "
-            "model name is invalid or other internal GeminiClient setup fails.",
+            "model name is invalid or the API key is missing.",
             ve,
             exc_info=True,
         )
         logger.error(
             "Please ensure 'llm.generation_model' is correctly specified in your "
-            "'config.yml' (e.g., 'gemini-1.5-pro-latest') or set the "
-            "'DEFAULT_GENERATION_MODEL' environment variable."
+            "'config.yml' (e.g., 'gemini-2.0-flash') and that GEMINI_API_KEY "
+            "environment variable is set."
         )
         return False
     except Exception as e:  # Catch other unexpected errors during initialization
@@ -1185,8 +1208,13 @@ def parse_arguments() -> argparse.Namespace:
         description="Generate informal English descriptions for Lean StatementGroups.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
+    db_url_default = DEFAULT_DB_URL_STR
+
     parser.add_argument(
-        "--db-url", type=str, required=True, help="SQLAlchemy database URL."
+        "--db-url",
+        type=str,
+        default=db_url_default,
+        help="SQLAlchemy database URL."
     )
     parser.add_argument(
         "--batch-size",

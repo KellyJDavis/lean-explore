@@ -4,7 +4,8 @@ database:
 
 llm:
   # --- Model Configuration ---
-  # Google Gemini model for text generation.
+  # Gemini model for text generation (e.g., "gemini-2.0-flash", "gemini-1.5-flash-latest").
+  # Requires GEMINI_API_KEY environment variable to be set.
   generation_model: "gemini-2.0-flash"
   # Google Gemini model for API-based text embeddings.
   # Note: Search uses a local sentence-transformer model specified in 'search' section.
@@ -15,8 +16,6 @@ llm:
   retries: 3
   # Base factor (seconds) for exponential backoff between retries.
   backoff: 1.0
-  # Token budget for model's internal "thinking" (model-dependent).
-  thinking_budget: 0 # Example, adjust based on model specifics
 
 lean_to_english:
   # --- Prompt Construction Limits ---
