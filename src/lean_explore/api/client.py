@@ -24,26 +24,44 @@ _DEFAULT_API_BASE_URL = "https://www.leanexplore.com/api/v1"
 class Client:
     """An asynchronous client for the Lean Explore backend API.
 
-    This client handles making HTTP requests to the production API base URL,
-    authenticating with an API key, and parsing responses into Pydantic models.
+    This client handles making HTTP requests to the API base URL,
+    optionally authenticating with an API key, and parsing responses
+    into Pydantic models.
+
+    The client supports three modes of operation:
+    1. API key only: Uses the default production API base URL with authentication.
+    2. Base URL only: Uses a custom base URL without authentication (for local servers).
+    3. Both API key and base URL: Uses a custom base URL with authentication.
 
     Attributes:
-        api_key: The API key used for authenticating requests.
+        api_key: The API key used for authenticating requests, if provided.
         timeout: The timeout for HTTP requests in seconds.
-        base_url: The hardcoded base URL for the API.
+        base_url: The base URL for the API.
     """
 
-    def __init__(self, api_key: str, timeout: float = 10.0):
+    def __init__(
+        self,
+        api_key: Optional[str] = None,
+        base_url: Optional[str] = None,
+        timeout: float = 10.0,
+    ):
         """Initializes the API Client.
 
         Args:
-            api_key: The API key for authentication.
+            api_key: Optional API key for authentication. If provided, requests
+                will include an Authorization header. If not provided, requests
+                will be made without authentication.
+            base_url: Optional custom base URL for the API. If not provided,
+                defaults to the production API base URL.
             timeout: Default timeout for HTTP requests in seconds.
         """
-        self.base_url: str = _DEFAULT_API_BASE_URL
-        self.api_key: str = api_key
+        self.base_url: str = base_url if base_url is not None else _DEFAULT_API_BASE_URL
+        self.api_key: Optional[str] = api_key
         self.timeout: float = timeout
-        self._headers: dict = {"Authorization": f"Bearer {self.api_key}"}
+        if api_key is not None:
+            self._headers: dict = {"Authorization": f"Bearer {self.api_key}"}
+        else:
+            self._headers: dict = {}
 
     async def _fetch_one_search(
         self,
