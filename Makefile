@@ -37,10 +37,10 @@ test-fast:
 	pytest -v -m "not slow and not integration and not external"
 
 test-integration:
-	pytest -v -m "integration"
+	pytest -v -m "integration" || [ $$? -eq 5 ]
 
 test-external:
-	pytest -v -m "external"
+	pytest -v -m "external" || [ $$? -eq 5 ]
 
 test-all:
 	pytest --cov=lean_explore --cov-report=term-missing --cov-report=html -v
