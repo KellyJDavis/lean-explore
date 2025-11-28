@@ -63,7 +63,8 @@ def initialize_backend(backend: str, api_key: Optional[str] = None) -> None:
             logger.error(f"Failed to initialize local backend: {e}", exc_info=True)
             raise RuntimeError(
                 f"Failed to initialize local backend: {e}. "
-                "Please ensure local data is available by running 'leanexplore data fetch'."
+                "Please ensure local data is available by running "
+                "'leanexplore data fetch'."
             ) from e
     else:
         raise ValueError(f"Invalid backend: '{backend}'. Must be 'api' or 'local'.")
@@ -148,14 +149,18 @@ async def get_statement_group(group_id: int) -> APISearchResultItem:
         try:
             item = await _api_client.get_by_id(group_id)
             if item is None:
-                raise HTTPException(status_code=404, detail="Statement group not found.")
+                raise HTTPException(
+                    status_code=404, detail="Statement group not found."
+                )
             return item
         except HTTPException:
             raise
         except httpx.HTTPStatusError as e:
             logger.error(f"API request failed: {e}")
             if e.response.status_code == 404:
-                raise HTTPException(status_code=404, detail="Statement group not found.")
+                raise HTTPException(
+                    status_code=404, detail="Statement group not found."
+                )
             raise HTTPException(
                 status_code=e.response.status_code,
                 detail=e.response.text or "API request failed.",
@@ -175,7 +180,9 @@ async def get_statement_group(group_id: int) -> APISearchResultItem:
         try:
             item = _local_service.get_by_id(group_id)
             if item is None:
-                raise HTTPException(status_code=404, detail="Statement group not found.")
+                raise HTTPException(
+                    status_code=404, detail="Statement group not found."
+                )
             return item
         except HTTPException:
             raise
@@ -213,14 +220,18 @@ async def get_dependencies(group_id: int) -> APICitationsResponse:
         try:
             response = await _api_client.get_dependencies(group_id)
             if response is None:
-                raise HTTPException(status_code=404, detail="Statement group not found.")
+                raise HTTPException(
+                    status_code=404, detail="Statement group not found."
+                )
             return response
         except HTTPException:
             raise
         except httpx.HTTPStatusError as e:
             logger.error(f"API request failed: {e}")
             if e.response.status_code == 404:
-                raise HTTPException(status_code=404, detail="Statement group not found.")
+                raise HTTPException(
+                    status_code=404, detail="Statement group not found."
+                )
             raise HTTPException(
                 status_code=e.response.status_code,
                 detail=e.response.text or "API request failed.",
@@ -240,7 +251,9 @@ async def get_dependencies(group_id: int) -> APICitationsResponse:
         try:
             response = _local_service.get_dependencies(group_id)
             if response is None:
-                raise HTTPException(status_code=404, detail="Statement group not found.")
+                raise HTTPException(
+                    status_code=404, detail="Statement group not found."
+                )
             return response
         except HTTPException:
             raise

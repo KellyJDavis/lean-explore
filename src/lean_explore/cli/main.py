@@ -701,7 +701,10 @@ def http_serve_command(
         "local",
         "--backend",
         "-b",
-        help="Backend to use for the HTTP server: 'api' or 'local'. Default is 'local'.",
+        help=(
+            "Backend to use for the HTTP server: 'api' or 'local'. "
+            "Default is 'local'."
+        ),
         case_sensitive=False,
         show_choices=True,
     ),
@@ -731,11 +734,14 @@ def http_serve_command(
     Args:
         backend: The backend choice ('api' or 'local').
         api_key_override: Optional API key to override any stored key.
+        host: The host address to bind the server to.
+        port: The port number for the server.
     """
     # Validate backend
     if backend.lower() not in ["api", "local"]:
         error_console.print(
-            f"[bold red]Invalid backend: '{backend}'. Must be 'api' or 'local'.[/bold red]"
+            f"[bold red]Invalid backend: '{backend}'. "
+            "Must be 'api' or 'local'.[/bold red]"
         )
         raise typer.Abort()
 
@@ -774,7 +780,8 @@ def http_serve_command(
 
     # Start the server
     console.print(
-        f"[green]Starting HTTP server on {host}:{port} with '{backend}' backend...[/green]"
+        f"[green]Starting HTTP server on {host}:{port} "
+        f"with '{backend}' backend...[/green]"
     )
     console.print(
         f"[dim]The server will be accessible at http://{host}:{port}/api/v1[/dim]"
@@ -787,7 +794,7 @@ def http_serve_command(
     try:
         # Clear sys.argv to prevent uvicorn from parsing arguments
         sys.argv = [sys.argv[0]]
-        
+
         # Pass app as module string to avoid uvicorn trying to re-execute the script
         uvicorn.run(
             "lean_explore.http.server:app",

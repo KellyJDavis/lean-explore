@@ -73,7 +73,7 @@ DEFAULT_DB_URL: Final[str] = f"sqlite:///{DEFAULT_DB_PATH.resolve()}"
 # Helper function to get the project version from pyproject.toml
 def _get_project_version() -> str:
     """Reads the project version from pyproject.toml.
-    
+
     Returns:
         The version string from pyproject.toml.
     """
@@ -83,9 +83,9 @@ def _get_project_version() -> str:
     current_file = pathlib.Path(__file__)
     project_root = current_file.parent.parent.parent
     pyproject_path = project_root / "pyproject.toml"
-    
+
     try:
-        with open(pyproject_path, "r", encoding="utf-8") as f:
+        with open(pyproject_path, encoding="utf-8") as f:
             pyproject_data = toml.load(f)
         return pyproject_data["project"]["version"]
     except (OSError, KeyError, toml.TomlDecodeError) as e:
@@ -104,8 +104,8 @@ R2_MANIFEST_DEFAULT_URL: Final[str] = (
     f"https://github.com/KellyJDavis/lean-explore/releases/download/v{_PROJECT_VERSION}/manifest.json"
 )
 
-# Base URL for accessing assets on GitHub releases. Specific file paths from the manifest
-# will be appended to this base.
+# Base URL for accessing assets on GitHub releases.
+# Specific file paths from the manifest will be appended to this base.
 R2_ASSETS_BASE_URL: Final[str] = (
     f"https://github.com/KellyJDavis/lean-explore/releases/download/v{_PROJECT_VERSION}/"
 )
