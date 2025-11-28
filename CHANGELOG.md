@@ -9,6 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 N/A
 
+## [0.4.0] - 2025-11-28
+
+### Added
+- **HTTP Server**: Added new `leanexplore serve` command that provides a FastAPI-based HTTP server for local API access, enabling programmatic access to search functionality without requiring the full CLI.
+- **Documentation Site**: Comprehensive documentation site built with MkDocs, including user guides, API references, development documentation, and examples.
+- **API Client Enhancements**: The API Client (`lean_explore.api.client`) now supports optional API keys and custom base URLs, making it more flexible for different deployment scenarios.
+- **GitHub Releases Integration**: Updated manifest generation to use GitHub releases with dynamic versioning, improving the reliability of version information.
+- **CI/CD Pipeline**: Added automated PyPI publishing workflow for streamlined releases.
+- **Development Tools**: Added Ruff linting configuration and included Ruff in dev dependencies for improved code quality.
+- **Makefile**: Added Makefile with common development tasks for easier project maintenance.
+- **Documentation**: Added comprehensive READMEs for extractors and scripts directories to help users understand the data pipeline.
+
+### Changed
+- **Package Name**: Changed package name from `lean-explore` to `lean-xplore` on PyPI.
+- **Lean Toolchain**: Reverted Lean toolchain from version 4.19 to 4.15 for better compatibility.
+
+### Fixed
+- **MCP Server**: Resolved timeout issues and improved error handling in the MCP server.
+- **MCP Server API Key**: Fixed MCP server to use stored API key when `--api-key` flag is not provided.
+- **Code Quality**: Resolved all Ruff linting errors across the codebase.
+- **Tests**: Fixed test alignment with lifespan initialization logic and allowed empty test runs for integration and external markers.
+
 ## [0.3.0] - 2025-06-09
 
 ### Added
