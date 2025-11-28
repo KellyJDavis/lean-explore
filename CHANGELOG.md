@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 N/A
 
+## [0.4.1] - 2025-11-28
+
+### Fixed
+- **Version Detection**: Fixed version detection to work in both development and installed environments. The `_get_project_version()` function now falls back to reading from package metadata when `pyproject.toml` is not available (e.g., when installed from PyPI), preventing `RuntimeError` when running commands like `leanexplore --help` after installation.
+
 ## [0.4.0] - 2025-11-28
 
 ### Added
