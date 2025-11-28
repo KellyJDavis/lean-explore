@@ -73,13 +73,11 @@ class TestFastMCPAppLifespan:
         This ensures the application fails fast if the necessary backend
         dependency is not provided by the server startup script.
         """
-        # Ensure _lean_explore_backend_service is not set or is None
+        # Ensure both backend service and backend type are not set
         if hasattr(mcp_app, "_lean_explore_backend_service"):
             del mcp_app._lean_explore_backend_service
-
-        # Mock getattr to simulate the backend service not being
-        # found on the app instance
-        mocker.patch("lean_explore.mcp.app.getattr", return_value=None)
+        if hasattr(mcp_app, "_lean_explore_backend_type"):
+            del mcp_app._lean_explore_backend_type
 
         with pytest.raises(RuntimeError) as exc_info:
             async with mcp_app.lifespan(mcp_app):
