@@ -23,7 +23,7 @@ from lean_explore.cli import (
     config_utils,
     data_commands,  # For data management subcommands
 )
-from lean_explore.http.server import app as http_app, initialize_backend
+from lean_explore.http.server import initialize_backend
 from lean_explore.shared.models.api import APISearchResponse
 
 # Import the specific command function and its async wrapper from agent.py

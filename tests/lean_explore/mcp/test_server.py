@@ -17,7 +17,6 @@ from unittest.mock import ANY, MagicMock, patch
 import pytest
 
 import lean_explore.defaults  # Used for default paths in pre-checks
-from lean_explore.api.client import Client as APIClient
 from lean_explore.local.service import Service as LocalService
 
 # Assume available via conftest/direct import if not using fixtures for them
@@ -194,7 +193,8 @@ class TestServerMainFunction:
         self.mock_default_db_path.exists.assert_called_once()
         self.mock_default_faiss_index_path.exists.assert_called_once()
         self.mock_default_faiss_map_path.exists.assert_called_once()
-        # Check that the backend type is set correctly (API key should be None for local)
+        # Check that the backend type is set correctly
+        # (API key should be None for local)
         assert mcp_app._lean_explore_backend_type == "local"
         assert mcp_app._lean_explore_backend_api_key is None
         self.mock_mcp_app_run.assert_called_once_with(transport="stdio")
@@ -238,7 +238,7 @@ class TestServerMainFunction:
 
     def test_main_exits_if_local_service_initialization_fails_filenotfound(self):
         """Verifies main exits if LocalService init fails with FileNotFoundError.
-        
+
         Note: This test verifies that main() sets up the backend type correctly.
         The actual LocalService initialization happens in the lifespan, which is
         tested separately in test_app.py.
@@ -257,7 +257,7 @@ class TestServerMainFunction:
 
     def test_main_exits_if_local_service_initialization_fails_runtime_error(self):
         """Verifies main exits if LocalService init fails with generic RuntimeError.
-        
+
         Note: This test verifies that main() sets up the backend type correctly.
         The actual LocalService initialization happens in the lifespan, which is
         tested separately in test_app.py.
@@ -276,7 +276,7 @@ class TestServerMainFunction:
 
     def test_main_exits_if_api_client_initialization_fails(self):
         """Verifies main function exits if APIClient initialization fails.
-        
+
         Note: This test verifies that main() sets up the backend type correctly.
         The actual APIClient initialization happens in the lifespan, which is
         tested separately in test_app.py.
