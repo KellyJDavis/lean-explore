@@ -62,7 +62,6 @@ try:
     # (e.g., 'pip install -e .') or the 'src/' directory is added to sys.path.
     # 'pip install -e .' is recommended.
     from config import APP_CONFIG
-
     from dev_tools.llm_caller import GeminiClient, GeminiCostTracker
     from lean_explore.shared.models.db import (
         Declaration,
@@ -280,14 +279,16 @@ def load_group_graph_data(
     }
 
     # SQLite has a limit on the number of variables in a query (~999 by default).
-    # We batch the source IDs and filter target IDs in Python to avoid exceeding the limit.
+    # We batch the source IDs and filter target IDs in Python to avoid
+    # exceeding the limit.
     SQLITE_VARIABLE_LIMIT = 999
     BATCH_SIZE = SQLITE_VARIABLE_LIMIT - 50  # Use 949 for safety margin
     groups_list = list(groups_to_process_ids)
     direct_group_dependencies: List[Tuple[int, int]] = []
 
     logger.info(
-        "Loading group dependencies for %d groups (using batches of %d to avoid SQLite variable limit)...",
+        "Loading group dependencies for %d groups "
+        "(using batches of %d to avoid SQLite variable limit)...",
         len(groups_list),
         BATCH_SIZE,
     )
@@ -304,8 +305,9 @@ def load_group_graph_data(
             StatementGroupDependency.source_statement_group_id.in_(batch_set),
         )
         batch_results = session.execute(stmt_group_deps_query).all()
-        # Filter in Python to only include dependencies where target is in groups_to_process_ids
-        # (source is already filtered by the query since batch_set is a subset of groups_to_process_ids)
+        # Filter in Python to only include dependencies where target is in
+        # groups_to_process_ids (source is already filtered by the query since
+        # batch_set is a subset of groups_to_process_ids)
         filtered_batch = [
             (src_id, tgt_id)
             for src_id, tgt_id in batch_results

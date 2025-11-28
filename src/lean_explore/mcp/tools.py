@@ -65,7 +65,9 @@ async def _get_backend_from_context(ctx: MCPContext) -> BackendServiceType:
             logger.error(
                 "MCP Tool Error: Backend service is None after initialization."
             )
-            raise RuntimeError("Backend service not configured or available for MCP tool.")
+            raise RuntimeError(
+                "Backend service not configured or available for MCP tool."
+            )
         return backend
     except Exception as e:
         logger.error(

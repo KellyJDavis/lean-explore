@@ -175,7 +175,9 @@ def main():
     # requests quickly, while heavy initialization (model loading) happens
     # asynchronously in the lifespan manager
     mcp_app._lean_explore_backend_type = args.backend
-    mcp_app._lean_explore_backend_api_key = args.api_key if args.backend == "api" else None
+    mcp_app._lean_explore_backend_api_key = (
+        args.api_key if args.backend == "api" else None
+    )
     logger.info(
         f"Backend initialization parameters ({args.backend}) set on MCP app. "
         "Service will be initialized asynchronously in lifespan."

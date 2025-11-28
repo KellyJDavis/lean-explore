@@ -100,7 +100,9 @@ class TestBackendInitialization:
         with patch("lean_explore.http.server.LocalService") as mock_service_class:
             mock_service_class.side_effect = FileNotFoundError(error_msg)
 
-            with pytest.raises(RuntimeError, match="Failed to initialize local backend"):
+            with pytest.raises(
+                RuntimeError, match="Failed to initialize local backend"
+            ):
                 initialize_backend("local", None)
 
     def test_initialize_backend_invalid(self, reset_backend_state):

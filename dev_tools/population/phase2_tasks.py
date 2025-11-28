@@ -428,7 +428,6 @@ def _process_single_file(
     t_start_ast_path_construction = time.perf_counter()
     effective_rel_str = source_file_rel_str
     path_obj_effective = Path(effective_rel_str)
-    package_identifier_for_ast_dir: str
     if not path_obj_effective.parts:
         logger.warning(
             "Worker: Skipping %s; effective relative path '%s' is empty.",
