@@ -202,7 +202,7 @@ def generate_manifest(
         description: Optional description of this toolchain version.
         release_date: Optional release date in YYYY-MM-DD format. Defaults to today.
         assets_base_path_r2: Optional base path for R2 assets (e.g., "assets/0.3.0/").
-            Defaults to "assets/{version}/".
+            Defaults to empty string.
         cleanup_temp: If True, removes temporary compressed files after processing.
     """
     logger.info("Starting manifest generation...")
@@ -216,7 +216,7 @@ def generate_manifest(
     if release_date is None:
         release_date = datetime.now().strftime("%Y-%m-%d")
     if assets_base_path_r2 is None:
-        assets_base_path_r2 = f"assets/{version}/"
+        assets_base_path_r2 = ""
 
     # Create temporary directory for compressed files
     temp_dir = data_dir / ".manifest_temp"
@@ -325,7 +325,7 @@ def parse_arguments() -> argparse.Namespace:
         type=str,
         default=None,
         help="Base path for R2 assets (e.g., 'assets/0.3.0/'). "
-        "Defaults to 'assets/{version}/'.",
+        "Defaults to empty string.",
     )
     parser.add_argument(
         "--keep-temp",

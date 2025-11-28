@@ -12,8 +12,47 @@ import os
 import pathlib
 
 import pytest
+import toml
 
 from lean_explore import defaults as project_defaults
+
+
+def _get_project_version() -> str:
+    """Reads the project version from pyproject.toml.
+    
+    Returns:
+        The version string from pyproject.toml.
+    """
+    # Get the path to pyproject.toml relative to this test file
+    # test_defaults.py is at tests/test_defaults.py
+    # pyproject.toml is at the project root
+    current_file = pathlib.Path(__file__)
+    project_root = current_file.parent.parent
+    pyproject_path = project_root / "pyproject.toml"
+    
+    with open(pyproject_path, "r", encoding="utf-8") as f:
+        pyproject_data = toml.load(f)
+    return pyproject_data["project"]["version"]
+
+
+def _get_expected_manifest_url() -> str:
+    """Constructs the expected manifest URL based on the project version.
+    
+    Returns:
+        The expected manifest URL.
+    """
+    version = _get_project_version()
+    return f"https://github.com/KellyJDavis/lean-explore/releases/download/v{version}/manifest.json"
+
+
+def _get_expected_assets_base_url() -> str:
+    """Constructs the expected assets base URL based on the project version.
+    
+    Returns:
+        The expected assets base URL.
+    """
+    version = _get_project_version()
+    return f"https://github.com/KellyJDavis/lean-explore/releases/download/v{version}/"
 
 
 class TestOriginalDefaults:
@@ -133,11 +172,11 @@ class TestOriginalDefaults:
         assert project_defaults.DEFAULT_FAISS_MAP_FILENAME == "faiss_ids_map.json"
         assert (
             project_defaults.R2_MANIFEST_DEFAULT_URL
-            == "https://pub-48b75babc4664808b15520033423c765.r2.dev/manifest.json"
+            == _get_expected_manifest_url()
         )
         assert (
             project_defaults.R2_ASSETS_BASE_URL
-            == "https://pub-48b75babc4664808b15520033423c765.r2.dev/"
+            == _get_expected_assets_base_url()
         )
         assert (
             project_defaults.ACTIVE_TOOLCHAIN_CONFIG_FILENAME == "active_toolchain.txt"
@@ -285,11 +324,11 @@ class TestIsolatedDefaults:
         assert project_defaults.DEFAULT_EMBEDDING_MODEL_NAME == "BAAI/bge-base-en-v1.5"
         assert (
             project_defaults.R2_MANIFEST_DEFAULT_URL
-            == "https://pub-48b75babc4664808b15520033423c765.r2.dev/manifest.json"
+            == _get_expected_manifest_url()
         )
         assert (
             project_defaults.R2_ASSETS_BASE_URL
-            == "https://pub-48b75babc4664808b15520033423c765.r2.dev/"
+            == _get_expected_assets_base_url()
         )
 
         # Numeric search/config parameters
