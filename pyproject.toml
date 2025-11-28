@@ -52,6 +52,18 @@ dependencies = [
     # Utilities
     "tqdm>=4.60",
     "requests>=2.25.0",
+    "pyyaml>=6.0",
+    "python-dotenv>=1.0.0",
+    
+    # Note: httpx is already included above for API Client
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-mock>=3.10.0",
 ]
 
 [project.urls]
@@ -62,7 +74,7 @@ Repository = "https://github.com/justincasher/lean-explore"
 leanexplore = "lean_explore.cli.main:app"
 
 [tool.setuptools.packages.find]
-where = ["src"]
+where = ["src", "."]
 
 [tool.pytest.ini_options]
 asyncio_mode = "strict"
@@ -114,7 +126,7 @@ exclude = [
 select = ["E", "W", "F", "I", "UP", "D"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["lean_explore"]
+known-first-party = ["lean_explore", "dev_tools"]
 
 [tool.ruff.lint.pydocstyle]
 # Set the docstring convention to Google style.

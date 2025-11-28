@@ -165,6 +165,18 @@ lake env lean --run ExtractAST.lean processSingleFileTask <input_path> <ast_json
 - Reports progress every 10 files processed
 - Can take hours to process large libraries like Mathlib
 
+**Troubleshooting Stack Overflow**:
+If you encounter "deep recursion was detected" errors:
+1. **Primary solution**: Increase system stack size before running:
+   ```bash
+   ulimit -s 65536  # or higher (default is typically 8192 on macOS)
+   cd extractor
+   lake env lean --run ExtractAST.lean processProject
+   ```
+   Each worker process runs independently and needs sufficient stack space for processing complex files.
+2. **Optional optimization**: If you have limited RAM, reducing `maxWorkers` (e.g., to 16, 8, or 4) in `ExtractAST.lean` may help with overall memory pressure, but won't fix stack overflow itself.
+3. **Alternative**: Process libraries separately by modifying `getTargetLibraries` to process one at a time
+
 **Requirements**:
 - All source files must have corresponding compiled `.olean` files
 - Requires significant disk space for output (can be tens of GB for large libraries)

@@ -10,6 +10,7 @@ The scripts follow a pipeline workflow:
 3. **LLM Processing**: Generate English descriptions and summaries
 4. **Embedding Generation**: Create vector embeddings from text data
 5. **Index Building**: Build a FAISS search index from embeddings
+6. **Manifest Generation**: Create manifest files for publishing data toolchains
 
 ## Scripts
 
@@ -116,7 +117,8 @@ python scripts/lean_to_english.py --db-url <DATABASE_URL> [OPTIONS]
 - `--startover`: Re-generate descriptions for all groups
 
 **Requirements**:
-- `GEMINI_API_KEY` environment variable or configuration
+- Gemini API key set in `GEMINI_API_KEY` environment variable
+- Model specified in `config.yml` (e.g., `gemini-2.0-flash`)
 - Prompt template file (default: `scripts/prompt_template.txt`)
 
 **Inputs**:
@@ -132,7 +134,7 @@ python scripts/lean_to_english.py --db-url <DATABASE_URL> [OPTIONS]
 
 ### 5. `get_summaries.py`
 
-**Purpose**: Generates concise, search-oriented summaries for StatementGroups using an LLM. Optimized for discoverability.
+**Purpose**: Generates concise, search-oriented summaries for StatementGroups using an LLM (Gemini). Optimized for discoverability.
 
 **Usage**:
 ```bash
@@ -145,7 +147,8 @@ python scripts/get_summaries.py [OPTIONS]
 - `--startover`: Re-generate summaries for all applicable groups
 
 **Requirements**:
-- `GEMINI_API_KEY` environment variable or configuration
+- Gemini API key set in `GEMINI_API_KEY` environment variable
+- Model specified in `config.yml` (e.g., `gemini-2.0-flash`)
 - Summary prompt template (default: `scripts/summary_prompt_template.txt`)
 
 **Inputs**:
@@ -256,7 +259,43 @@ python scripts/build_faiss_index.py [OPTIONS]
 
 ---
 
-### 9. `generate_docs_data.py`
+### 9. `generate_manifest.py`
+
+**Purpose**: Generates a `manifest.json` file for Lean Explore data toolchains. Reads the required data files (database, FAISS index, and ID map), compresses them, calculates SHA256 checksums, and creates a manifest that can be used for publishing data to Cloudflare R2 or for local use.
+
+**Optimization**: The script automatically reuses existing compressed files if they are present and up-to-date (i.e., the compressed file's modification time is newer than or equal to the source file's modification time). This avoids unnecessary recompression when regenerating manifests with unchanged source files.
+
+**Usage**:
+```bash
+python scripts/generate_manifest.py --version <VERSION> [OPTIONS]
+```
+
+**Key Options**:
+- `--data-dir`, `-d`: Directory containing the data files (default: `data`)
+- `--output`, `-o`: Path where the manifest.json should be written (default: `manifest.json`)
+- `--version`, `-v`: Toolchain version string, e.g., `0.3.0` (required)
+- `--description`: Description of this toolchain version (defaults to `v{version}`)
+- `--release-date`: Release date in YYYY-MM-DD format (defaults to today's date)
+- `--assets-base-path-r2`: Base path for R2 assets, e.g., `assets/0.3.0/` (defaults to `assets/{version}/`)
+- `--keep-temp`: Keep temporary compressed files after processing (for inspection)
+
+**Inputs**:
+- `lean_explore_data.db`: Database file (from `populate_db.py`)
+- `main_faiss.index`: FAISS index file (from `build_faiss_index.py`)
+- `faiss_ids_map.json`: ID map file (from `build_faiss_index.py`)
+
+**Outputs**:
+- `manifest.json`: Manifest file containing:
+  - Toolchain version information
+  - File metadata (local names, remote names, SHA256 checksums, compressed/uncompressed sizes)
+  - Asset base paths for R2 storage
+  - Release date and description
+
+**Order**: **After `build_faiss_index.py`** - Requires all three data files (database, FAISS index, and ID map) to be present. This is typically the final step before publishing a data toolchain.
+
+---
+
+### 10. `generate_docs_data.py`
 
 **Purpose**: Generates structured documentation data from Python source files using griffe. Independent of the database workflow.
 
@@ -276,6 +315,81 @@ python scripts/generate_docs_data.py
 - JSON file (default: `data/module_data.json`) with structured documentation data for frontend consumption
 
 **Order**: **Independent** - Can be run at any time, unrelated to the database/embedding pipeline.
+
+---
+
+## Execution Order
+
+The scripts must be run in a specific order due to data dependencies. Below are the recommended execution sequences for different use cases.
+
+### Full Pipeline (External Extraction → Database → Embeddings → Index)
+
+**Prerequisites**: Ensure you have generated the required input files (see "External Input Sources" section below).
+
+```bash
+# 1. Populate database (must run first)
+python scripts/populate_db.py --create-tables
+
+# 2. (Optional) Update primary declarations for better data quality
+python scripts/update_primary_declarations.py
+
+# 3. (Optional) Calculate PageRank scores for ranking
+python scripts/pagerank.py
+
+# 4. Generate English descriptions (requires GEMINI_API_KEY environment variable)
+python scripts/lean_to_english.py --db-url sqlite:///data/lean_explore_data.db
+
+# 5. Generate summaries (requires GEMINI_API_KEY environment variable)
+python scripts/get_summaries.py --db-url sqlite:///data/lean_explore_data.db
+
+# 6. Prepare embedding input from database
+python scripts/prepare_embedding_input.py --db-url sqlite:///data/lean_explore_data.db
+
+# 7. Generate vector embeddings
+python scripts/generate_embeddings.py --input-file data/embedding_input.json
+
+# 8. Build FAISS search index
+python scripts/build_faiss_index.py --input-npz-file data/generated_embeddings.npz
+
+# 9. (Optional) Generate manifest for publishing
+python scripts/generate_manifest.py --version 0.3.0 --data-dir data --output manifest.json
+```
+
+**Note**: Steps 2-3 are optional but recommended for better data quality. Steps 4-5 require `GEMINI_API_KEY` environment variable to be set and the model specified in `config.yml` (e.g., `gemini-2.0-flash`). Step 9 is optional and only needed if you plan to publish the data toolchain.
+
+### Minimal Pipeline (Database Only)
+
+If you only need the database populated without embeddings:
+
+```bash
+python scripts/populate_db.py --create-tables
+```
+
+### Embedding Pipeline Only (if database already populated)
+
+If your database is already populated and you only need to regenerate embeddings:
+
+```bash
+python scripts/prepare_embedding_input.py
+python scripts/generate_embeddings.py
+python scripts/build_faiss_index.py
+```
+
+### External Input Generation
+
+Before running step 1 above, you need to generate the input files from Lean code. This is done using the extractor scripts:
+
+```bash
+# Generate declarations and dependencies
+cd extractor
+lake env lean --run ExtractDeclarations.lean
+
+# Generate AST files
+lake env lean --run ExtractAST.lean processProject
+cd ..
+```
+
+See the "External Input Sources" section below for more details.
 
 ---
 
@@ -377,56 +491,6 @@ The extractor scripts require:
 
 ---
 
-## Recommended Execution Order
-
-### Full Pipeline (External Extraction → Database → Embeddings → Index)
-
-```bash
-# 0. Generate external inputs (if not already done)
-cd extractor
-lake env lean --run ExtractDeclarations.lean
-lake env lean --run ExtractAST.lean processProject
-cd ..
-
-# 1. Populate database
-python scripts/populate_db.py --create-tables
-
-# 2. (Optional) Update primary declarations
-python scripts/update_primary_declarations.py
-
-# 3. (Optional) Calculate PageRank
-python scripts/pagerank.py
-
-# 4. Generate English descriptions (requires GEMINI_API_KEY)
-python scripts/lean_to_english.py --db-url sqlite:///data/lean_explore_data.db
-
-# 5. Generate summaries (requires GEMINI_API_KEY)
-python scripts/get_summaries.py --db-url sqlite:///data/lean_explore_data.db
-
-# 6. Prepare embedding input
-python scripts/prepare_embedding_input.py --db-url sqlite:///data/lean_explore_data.db
-
-# 7. Generate embeddings
-python scripts/generate_embeddings.py --input-file data/embedding_input.json
-
-# 8. Build FAISS index
-python scripts/build_faiss_index.py --input-npz-file data/generated_embeddings.npz
-```
-
-### Minimal Pipeline (Database Only)
-
-```bash
-python scripts/populate_db.py --create-tables
-```
-
-### Embedding Pipeline Only (if database already populated)
-
-```bash
-python scripts/prepare_embedding_input.py
-python scripts/generate_embeddings.py
-python scripts/build_faiss_index.py
-```
-
 ## Data Flow Summary
 
 ```
@@ -458,6 +522,8 @@ dependencies.jsonl ─┤
                                                                                 └─→ generate_embeddings.py ─→ generated_embeddings.npz
                                                                                                                    │
                                                                                                                    └─→ build_faiss_index.py ─→ main_faiss.index + faiss_ids_map.json
+                                                                                                                      │
+                                                                                                                      └─→ generate_manifest.py ─→ manifest.json
 ```
 
 ## Requirements
@@ -472,9 +538,10 @@ dependencies.jsonl ─┤
 - PyTorch (for `generate_embeddings.py`)
 - griffe (for `generate_docs_data.py`)
 - tqdm (for progress bars)
+- Standard library modules: `gzip`, `hashlib`, `json`, `pathlib`, `shutil` (for `generate_manifest.py`)
 
 ### Environment Variables
-- `GEMINI_API_KEY`: Required for `lean_to_english.py` and `get_summaries.py`
+- **GEMINI_API_KEY**: Required for `lean_to_english.py` and `get_summaries.py`. Must be set to your Google Gemini API key. The model to use should be specified in `config.yml` under `llm.generation_model` (e.g., `gemini-2.0-flash`). Get your API key from https://aistudio.google.com/app/apikey
 
 ### Configuration
 - Most scripts use `config.yml` for database URLs and other settings

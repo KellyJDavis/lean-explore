@@ -11,7 +11,16 @@ min-max scaled version of their PageRank scores.
 import argparse
 import logging
 import sys
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
+
+# --- Project Path Setup for Imports ---
+# Add src directory to sys.path to allow importing config module
+_SCRIPT_DIR = Path(__file__).resolve().parent
+_PROJECT_ROOT = _SCRIPT_DIR.parent
+_SRC_PATH = _PROJECT_ROOT / "src"
+if str(_SRC_PATH) not in sys.path:
+    sys.path.insert(0, str(_SRC_PATH))
 
 # --- Dependency Imports ---
 try:
