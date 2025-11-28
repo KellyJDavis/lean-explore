@@ -9,6 +9,7 @@ FAISS index, etc.) for a specific toolchain version are expected to reside.
 
 import os
 import pathlib
+from importlib import metadata
 from typing import Final
 
 import toml
@@ -70,16 +71,17 @@ DEFAULT_DB_URL: Final[str] = f"sqlite:///{DEFAULT_DB_PATH.resolve()}"
 # These constants are used by the data management commands to locate and
 # manage remote toolchain data assets.
 
-# Helper function to get the project version from pyproject.toml
+# Helper function to get the project version
 def _get_project_version() -> str:
-    """Reads the project version from pyproject.toml.
+    """Reads the project version from pyproject.toml (development) or package metadata (installed).
+
+    First tries to read from pyproject.toml for development environments.
+    Falls back to reading from installed package metadata for installed packages.
 
     Returns:
-        The version string from pyproject.toml.
+        The version string from pyproject.toml or package metadata.
     """
-    # Get the path to pyproject.toml relative to this file
-    # defaults.py is at src/lean_explore/defaults.py
-    # pyproject.toml is at the project root
+    # Try to read from pyproject.toml first (for development)
     current_file = pathlib.Path(__file__)
     project_root = current_file.parent.parent.parent
     pyproject_path = project_root / "pyproject.toml"
@@ -88,12 +90,20 @@ def _get_project_version() -> str:
         with open(pyproject_path, encoding="utf-8") as f:
             pyproject_data = toml.load(f)
         return pyproject_data["project"]["version"]
-    except (OSError, KeyError, toml.TomlDecodeError) as e:
-        # Fallback to a default version if reading fails
-        # This should not happen in normal operation
-        raise RuntimeError(
-            f"Failed to read version from pyproject.toml at {pyproject_path}: {e}"
-        ) from e
+    except (OSError, KeyError, toml.TomlDecodeError):
+        # If pyproject.toml is not available (e.g., in installed package),
+        # try to read from package metadata
+        try:
+            # The package name in pyproject.toml is "lean-xplore" (with hyphen)
+            # but the import name is "lean_explore" (with underscore)
+            return metadata.version("lean-xplore")
+        except metadata.PackageNotFoundError:
+            # If package metadata is also not available, raise an informative error
+            raise RuntimeError(
+                f"Failed to read version: pyproject.toml not found at {pyproject_path} "
+                "and package 'lean-xplore' is not installed. "
+                "This should not happen in normal operation."
+            ) from None
 
 
 # Get the project version for constructing URLs
