@@ -73,7 +73,7 @@ DEFAULT_DB_URL: Final[str] = f"sqlite:///{DEFAULT_DB_PATH.resolve()}"
 
 # Helper function to get the project version
 def _get_project_version() -> str:
-    """Reads the project version from pyproject.toml (development) or package metadata (installed).
+    """Reads the project version from pyproject.toml or package metadata.
 
     First tries to read from pyproject.toml for development environments.
     Falls back to reading from installed package metadata for installed packages.
