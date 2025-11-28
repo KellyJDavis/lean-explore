@@ -1,4 +1,4 @@
-.PHONY: help install lint format test test-fast test-integration test-external test-all clean
+.PHONY: help install lint format test test-fast test-integration test-external test-all clean docs docs-serve docs-build
 
 help:
 	@echo "LeanExplore Development Commands"
@@ -11,6 +11,8 @@ help:
 	@echo "make test-integration Run only integration tests"
 	@echo "make test-external    Run only external tests"
 	@echo "make test-all         Run all tests including slow, integration, and external"
+	@echo "make docs             Build documentation"
+	@echo "make docs-serve       Serve documentation locally (with auto-reload)"
 	@echo "make clean            Remove cache and build artifacts"
 
 install:
@@ -45,6 +47,14 @@ test-external:
 test-all:
 	pytest --cov=lean_explore --cov-report=term-missing --cov-report=html -v
 
+docs:
+	pip install -e ".[docs]"
+	mkdocs build
+
+docs-serve:
+	pip install -e ".[docs]"
+	mkdocs serve
+
 clean:
 	rm -rf build/
 	rm -rf dist/
@@ -53,6 +63,7 @@ clean:
 	rm -rf .ruff_cache
 	rm -rf htmlcov/
 	rm -rf .coverage
+	rm -rf site/
 	find . -type d -name __pycache__ -exec rm -rf {} +
 	find . -type f -name "*.pyc" -delete
 
