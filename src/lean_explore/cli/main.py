@@ -640,8 +640,8 @@ def mcp_serve_command(
                 "or provide it with the `--api-key` option for this command."
             )
             raise typer.Abort()
-        if api_key_override:
-            command_parts.extend(["--api-key", api_key_override])
+        if effective_lean_explore_api_key:
+            command_parts.extend(["--api-key", effective_lean_explore_api_key])
     elif backend.lower() == "local":
         error_console.print(  # Changed to error_console for consistency
             "[dim]Attempting to start MCP server with 'local' backend. "
