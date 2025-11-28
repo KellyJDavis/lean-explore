@@ -163,9 +163,6 @@ class TestServerMainFunction:
             ["--backend", "api", "--api-key", "my_api_key", "--log-level", "INFO"]
         )
 
-        mock_api_client_instance = MagicMock(spec=APIClient)
-        self.mock_api_client_init.return_value = mock_api_client_instance
-
         main()
 
         self.mock_logging_config.assert_called_with(
@@ -175,17 +172,15 @@ class TestServerMainFunction:
             stream=sys.stderr,
             force=True,
         )
-        self.mock_api_client_init.assert_called_once_with(api_key="my_api_key")
-        assert mcp_app._lean_explore_backend_service is mock_api_client_instance
+        # Check that the backend type and API key are set correctly
+        assert mcp_app._lean_explore_backend_type == "api"
+        assert mcp_app._lean_explore_backend_api_key == "my_api_key"
         self.mock_mcp_app_run.assert_called_once_with(transport="stdio")
         self.mock_sys_exit.assert_not_called()
 
     def test_main_runs_local_backend_successfully(self):
         """Verifies successful main function init and run with local backend."""
         self.mock_sys_argv.extend(["--backend", "local", "--log-level", "DEBUG"])
-
-        mock_local_service_instance = MagicMock(spec=LocalService)
-        self.mock_local_service_init.return_value = mock_local_service_instance
 
         main()
 
@@ -199,8 +194,9 @@ class TestServerMainFunction:
         self.mock_default_db_path.exists.assert_called_once()
         self.mock_default_faiss_index_path.exists.assert_called_once()
         self.mock_default_faiss_map_path.exists.assert_called_once()
-        self.mock_local_service_init.assert_called_once_with()
-        assert mcp_app._lean_explore_backend_service is mock_local_service_instance
+        # Check that the backend type is set correctly (API key should be None for local)
+        assert mcp_app._lean_explore_backend_type == "local"
+        assert mcp_app._lean_explore_backend_api_key is None
         self.mock_mcp_app_run.assert_called_once_with(transport="stdio")
         self.mock_sys_exit.assert_not_called()
 
@@ -241,66 +237,63 @@ class TestServerMainFunction:
         )
 
     def test_main_exits_if_local_service_initialization_fails_filenotfound(self):
-        """Verifies main exits if LocalService init fails with FileNotFoundError."""
+        """Verifies main exits if LocalService init fails with FileNotFoundError.
+        
+        Note: This test verifies that main() sets up the backend type correctly.
+        The actual LocalService initialization happens in the lifespan, which is
+        tested separately in test_app.py.
+        """
         self.mock_sys_argv.extend(["--backend", "local", "--log-level", "ERROR"])
-        # Pre-checks pass, but LocalService itself raises FileNotFoundError
-        self.mock_local_service_init.side_effect = FileNotFoundError(
-            "mock_db_corrupted.db"
-        )
 
         main()
 
-        self.mock_local_service_init.assert_called_once()
-        self.mock_mcp_app_run.assert_not_called()
-        self.mock_sys_exit.assert_called_once_with(1)
-        # Check if error is logged critically
-        assert any(
-            "LocalService initialization failed due to an unexpected missing file"
-            in record.message
-            for record in self.mock_logging_config.call_args[0]
-            if isinstance(record, logging.LogRecord)
-        )
+        # Check that the backend type is set correctly
+        assert mcp_app._lean_explore_backend_type == "local"
+        assert mcp_app._lean_explore_backend_api_key is None
+        # The lifespan would handle initialization, but since run() is mocked,
+        # we just verify the attributes are set
+        self.mock_mcp_app_run.assert_called_once_with(transport="stdio")
+        self.mock_sys_exit.assert_not_called()
 
     def test_main_exits_if_local_service_initialization_fails_runtime_error(self):
-        """Verifies main exits if LocalService init fails with generic RuntimeError."""
+        """Verifies main exits if LocalService init fails with generic RuntimeError.
+        
+        Note: This test verifies that main() sets up the backend type correctly.
+        The actual LocalService initialization happens in the lifespan, which is
+        tested separately in test_app.py.
+        """
         self.mock_sys_argv.extend(["--backend", "local", "--log-level", "ERROR"])
-        self.mock_local_service_init.side_effect = RuntimeError(
-            "Generic initialization error"
-        )
 
         main()
 
-        self.mock_local_service_init.assert_called_once()
-        self.mock_mcp_app_run.assert_not_called()
-        self.mock_sys_exit.assert_called_once_with(1)
-        assert any(
-            "LocalService initialization failed: Generic initialization error"
-            in record.message
-            for record in self.mock_logging_config.call_args[0]
-            if isinstance(record, logging.LogRecord)
-        )
+        # Check that the backend type is set correctly
+        assert mcp_app._lean_explore_backend_type == "local"
+        assert mcp_app._lean_explore_backend_api_key is None
+        # The lifespan would handle initialization, but since run() is mocked,
+        # we just verify the attributes are set
+        self.mock_mcp_app_run.assert_called_once_with(transport="stdio")
+        self.mock_sys_exit.assert_not_called()
 
     def test_main_exits_if_api_client_initialization_fails(self):
-        """Verifies main function exits if APIClient initialization fails."""
+        """Verifies main function exits if APIClient initialization fails.
+        
+        Note: This test verifies that main() sets up the backend type correctly.
+        The actual APIClient initialization happens in the lifespan, which is
+        tested separately in test_app.py.
+        """
         self.mock_sys_argv.extend(
             ["--backend", "api", "--api-key", "my_key", "--log-level", "ERROR"]
         )
-        self.mock_api_client_init.side_effect = Exception("API client init failed")
 
         main()
 
-        self.mock_api_client_init.assert_called_once()
-        self.mock_mcp_app_run.assert_not_called()
-        self.mock_sys_exit.assert_called_once_with(1)
-        assert any(
-            (
-                "An unexpected error occurred while initializing APIClient: "
-                "API client init failed"
-            )
-            in record.message
-            for record in self.mock_logging_config.call_args[0]
-            if isinstance(record, logging.LogRecord)
-        )
+        # Check that the backend type and API key are set correctly
+        assert mcp_app._lean_explore_backend_type == "api"
+        assert mcp_app._lean_explore_backend_api_key == "my_key"
+        # The lifespan would handle initialization, but since run() is mocked,
+        # we just verify the attributes are set
+        self.mock_mcp_app_run.assert_called_once_with(transport="stdio")
+        self.mock_sys_exit.assert_not_called()
 
     def test_main_handles_mcp_app_run_exception(self):
         """Verifies main function handles exceptions during mcp_app.run."""

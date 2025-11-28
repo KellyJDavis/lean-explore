@@ -71,6 +71,27 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
     # parameters as attributes on the mcp_app instance before mcp_app.run() is called.
     # This allows the server to respond to initialize requests quickly, and then
     # we load the heavy backend service asynchronously.
+    # First, check if a backend service is already pre-initialized (e.g., for testing)
+    pre_initialized_service: Optional[BackendServiceType] = getattr(
+        server, "_lean_explore_backend_service", None
+    )
+
+    if pre_initialized_service is not None:
+        # Use the pre-initialized service directly
+        logger.info("Using pre-initialized backend service.")
+        app_context = AppContext()
+        app_context.backend_service = pre_initialized_service
+        # Create a completed future for consistency
+        backend_future: asyncio.Future[BackendServiceType] = asyncio.Future()
+        backend_future.set_result(pre_initialized_service)
+        app_context._backend_future = backend_future
+        try:
+            yield app_context
+        finally:
+            logger.info("MCP application lifespan shutting down...")
+        return
+
+    # Otherwise, initialize based on type
     backend_type: Optional[str] = getattr(server, "_lean_explore_backend_type", None)
     backend_api_key: Optional[str] = getattr(
         server, "_lean_explore_backend_api_key", None
@@ -78,13 +99,13 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
 
     if backend_type is None:
         logger.error(
-            "Backend type not found on the FastMCP app instance. "
-            "The MCP server script must set '_lean_explore_backend_type' "
-            "before running the app."
+            "Backend service not found on the FastMCP app instance. "
+            "The MCP server script must set either '_lean_explore_backend_service' "
+            "or '_lean_explore_backend_type' before running the app."
         )
         raise RuntimeError(
-            "Backend type not set for MCP app. "
-            "Ensure the server script correctly sets the backend type attribute "
+            "Backend service not initialized for MCP app. "
+            "Ensure the server script correctly sets the backend service attribute "
             "on the FastMCP app instance."
         )
 
