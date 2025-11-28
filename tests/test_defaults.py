@@ -19,7 +19,7 @@ from lean_explore import defaults as project_defaults
 
 def _get_project_version() -> str:
     """Reads the project version from pyproject.toml.
-    
+
     Returns:
         The version string from pyproject.toml.
     """
@@ -29,15 +29,15 @@ def _get_project_version() -> str:
     current_file = pathlib.Path(__file__)
     project_root = current_file.parent.parent
     pyproject_path = project_root / "pyproject.toml"
-    
-    with open(pyproject_path, "r", encoding="utf-8") as f:
+
+    with open(pyproject_path, encoding="utf-8") as f:
         pyproject_data = toml.load(f)
     return pyproject_data["project"]["version"]
 
 
 def _get_expected_manifest_url() -> str:
     """Constructs the expected manifest URL based on the project version.
-    
+
     Returns:
         The expected manifest URL.
     """
@@ -47,7 +47,7 @@ def _get_expected_manifest_url() -> str:
 
 def _get_expected_assets_base_url() -> str:
     """Constructs the expected assets base URL based on the project version.
-    
+
     Returns:
         The expected assets base URL.
     """

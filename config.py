@@ -20,8 +20,10 @@ except ImportError as e:
     raise ImportError(
         f"Could not import from dev_tools.config: {e}\n"
         "This usually means:\n"
-        "1. The 'dev_tools' package is not installed. Run 'make install' or 'pip install -e .'\n"
-        "2. The project root is not in sys.path. Ensure scripts add the project root to sys.path."
+        "1. The 'dev_tools' package is not installed. "
+        "Run 'make install' or 'pip install -e .'\n"
+        "2. The project root is not in sys.path. "
+        "Ensure scripts add the project root to sys.path."
     ) from e
 
 

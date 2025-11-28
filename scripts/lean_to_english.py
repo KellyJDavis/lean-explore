@@ -61,14 +61,14 @@ try:
     # For 'lean_explore' modules, ensure 'lean_explore' is installed
     # (e.g., 'pip install -e .') or the 'src/' directory is added to sys.path.
     # 'pip install -e .' is recommended.
-    from config import APP_CONFIG
-
     from dev_tools.llm_caller import GeminiClient, GeminiCostTracker
     from lean_explore.shared.models.db import (
         Declaration,
         StatementGroup,
         StatementGroupDependency,
     )
+
+    from config import APP_CONFIG
 except ImportError as e:
     # pylint: disable=broad-exception-raised
     print(

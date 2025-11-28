@@ -402,8 +402,8 @@ async def generate_summaries_for_statement_groups(
         )
     except ValueError as ve:
         logger.error(
-            "Failed to initialize GeminiClient for summaries: %s. This might happen if the "
-            "model name is invalid or the API key is missing.",
+            "Failed to initialize GeminiClient for summaries: %s. "
+            "This might happen if the model name is invalid or the API key is missing.",
             ve,
             exc_info=True,
         )
@@ -415,7 +415,8 @@ async def generate_summaries_for_statement_groups(
         return False
     except Exception as e:
         logger.error(
-            "An unexpected error occurred while initializing GeminiClient for summaries: %s",
+            "An unexpected error occurred while initializing "
+            "GeminiClient for summaries: %s",
             e,
             exc_info=True,
         )
