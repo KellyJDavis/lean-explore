@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 N/A
 
+## [0.4.3] - 2025-11-29
+
+### Fixed
+- **README Documentation**: Fixed numerous documentation errors in the README, including incorrect CLI command syntax (`--pkg` → `--package`, `start` → `serve`), incorrect Python API field names (`results.items` → `results.results`), incorrect server port (8000 → 8001) and missing `/api/v1` path, removed non-existent `--backend` flag from search command examples, fixed `configure api-key` to use `--api-key` flag properly, and added missing `asyncio.run()` wrappers in Python API examples. All examples now accurately reflect the implementation.
+
 ## [0.4.2] - 2025-11-29
 
 ### Added
