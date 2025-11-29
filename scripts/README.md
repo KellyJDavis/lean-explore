@@ -265,18 +265,23 @@ python scripts/build_faiss_index.py [OPTIONS]
 
 **Optimization**: The script automatically reuses existing compressed files if they are present and up-to-date (i.e., the compressed file's modification time is newer than or equal to the source file's modification time). This avoids unnecessary recompression when regenerating manifests with unchanged source files.
 
+**File Splitting**: Files that exceed the split threshold (default: 1.8GB) are automatically split into multiple parts for upload to services with file size limits (e.g., GitHub releases with 2GB per asset limit). The manifest includes metadata for each part, and the download process automatically reassembles split files.
+
 **Usage**:
 ```bash
-python scripts/generate_manifest.py --version <VERSION> [OPTIONS]
+python scripts/generate_manifest.py [OPTIONS]
 ```
 
 **Key Options**:
 - `--data-dir`, `-d`: Directory containing the data files (default: `data`)
 - `--output`, `-o`: Path where the manifest.json should be written (default: `manifest.json`)
-- `--version`, `-v`: Toolchain version string, e.g., `0.3.0` (required)
-- `--description`: Description of this toolchain version (defaults to `v{version}`)
+- `--latest-manifest-version`: Latest manifest version string, e.g., `0.3.0` (defaults to value from `lean_explore.defaults.LATEST_MANIFEST_VERSION`, currently `"0.3.0"`)
+- `--default-toolchain`: Default toolchain version string, e.g., `0.2.0` (defaults to value from `lean_explore.defaults.DEFAULT_ACTIVE_TOOLCHAIN_VERSION`, currently `"0.2.0"`). This is used as the key in the `toolchains` dict and the value of `default_toolchain` in the manifest.
+- `--description`: Description of this toolchain version (defaults to `v{default_toolchain}`)
 - `--release-date`: Release date in YYYY-MM-DD format (defaults to today's date)
-- `--assets-base-path-r2`: Base path for R2 assets, e.g., `assets/0.3.0/` (defaults to `assets/{version}/`)
+- `--assets-base-path-r2`: Base path for R2 assets, e.g., `assets/0.3.0/` (defaults to empty string)
+- `--split-threshold`: Size threshold in bytes above which files will be split (default: 1,880,000,000 bytes / ~1.8GB)
+- `--split-chunk-size`: Size of each split chunk in bytes (default: 1,880,000,000 bytes / ~1.8GB)
 - `--keep-temp`: Keep temporary compressed files after processing (for inspection)
 
 **Inputs**:
@@ -286,8 +291,10 @@ python scripts/generate_manifest.py --version <VERSION> [OPTIONS]
 
 **Outputs**:
 - `manifest.json`: Manifest file containing:
-  - Toolchain version information
-  - File metadata (local names, remote names, SHA256 checksums, compressed/uncompressed sizes)
+  - Latest manifest version (`latest_manifest_version`)
+  - Default toolchain version (`default_toolchain`)
+  - Toolchain entries with file metadata (local names, remote names, SHA256 checksums, compressed/uncompressed sizes)
+  - For split files: `parts` array with metadata for each part (remote names, checksums, sizes, part numbers)
   - Asset base paths for R2 storage
   - Release date and description
 
@@ -352,7 +359,11 @@ python scripts/generate_embeddings.py --input-file data/embedding_input.json
 python scripts/build_faiss_index.py --input-npz-file data/generated_embeddings.npz
 
 # 9. (Optional) Generate manifest for publishing
-python scripts/generate_manifest.py --version 0.3.0 --data-dir data --output manifest.json
+# Uses defaults: latest_manifest_version="0.3.0", default_toolchain="0.2.0"
+python scripts/generate_manifest.py --data-dir data --output manifest.json
+
+# Or specify versions explicitly:
+python scripts/generate_manifest.py --latest-manifest-version 0.3.0 --default-toolchain 0.2.0 --data-dir data --output manifest.json
 ```
 
 **Note**: Steps 2-3 are optional but recommended for better data quality. Steps 4-5 require `GEMINI_API_KEY` environment variable to be set and the model specified in `config.yml` (e.g., `gemini-2.0-flash`). Step 9 is optional and only needed if you plan to publish the data toolchain.

@@ -308,6 +308,195 @@ def _decompress_gzipped_file(
     return False
 
 
+def _download_split_file_parts(
+    file_entry: Dict[str, Any],
+    assets_r2_path_prefix: str,
+    local_version_dir: pathlib.Path,
+    base_url: str,
+    timeout: int = 300,
+) -> Optional[List[pathlib.Path]]:
+    """Downloads all parts for a split file, verifying each part.
+
+    Args:
+        file_entry: The file entry from the manifest containing parts metadata.
+        assets_r2_path_prefix: The assets base path prefix from the manifest.
+        local_version_dir: Directory where parts should be downloaded.
+        base_url: Base URL for downloading assets.
+        timeout: Request timeout in seconds for each download. Defaults to 300 (5 minutes)
+            to accommodate large parts.
+
+    Returns:
+        List of paths to downloaded part files in order, or None on failure.
+    """
+    parts = file_entry.get("parts", [])
+    if not parts:
+        console.print(
+            "[bold red]Split file entry has no 'parts' array. Cannot download.[/bold red]"
+        )
+        return None
+
+    local_name = file_entry.get("local_name", "unknown")
+    num_parts = len(parts)
+
+    console.print(
+        f"Downloading [cyan]{local_name}[/cyan] as split file "
+        f"({num_parts} parts)..."
+    )
+
+    # Create directory for storing parts
+    parts_dir = local_version_dir / ".parts"
+    try:
+        parts_dir.mkdir(parents=True, exist_ok=True)
+    except OSError as e:
+        console.print(
+            f"[bold red]Error creating parts directory {parts_dir}: {e}[/bold red]"
+        )
+        return None
+
+    # Sort parts by part_number to ensure correct order
+    sorted_parts = sorted(parts, key=lambda p: p.get("part_number", 0))
+
+    downloaded_part_paths: List[pathlib.Path] = []
+
+    # Download each part sequentially
+    for idx, part_entry in enumerate(sorted_parts, start=1):
+        part_remote_name = part_entry.get("remote_name")
+        part_expected_checksum = part_entry.get("sha256")
+        part_expected_size = part_entry.get("size_bytes")
+        part_number = part_entry.get("part_number", idx - 1)
+
+        if not part_remote_name or not part_expected_checksum:
+            console.print(
+                f"[bold red]Part {part_number} missing remote_name or sha256. "
+                "Skipping.[/bold red]"
+            )
+            _cleanup_split_file_artifacts(parts_dir, None)
+            return None
+
+        part_description = f"{local_name} - part {idx}/{num_parts}"
+        part_path = parts_dir / part_remote_name
+
+        # Build remote URL for this part
+        remote_url = (
+            base_url.rstrip("/")
+            + "/"
+            + assets_r2_path_prefix.strip("/")
+            + "/"
+            + part_remote_name
+        )
+
+        # Download the part
+        download_ok = _download_file_with_progress(
+            remote_url,
+            part_path,
+            description=part_description,
+            expected_size_bytes=part_expected_size,
+            timeout=timeout,
+        )
+
+        if not download_ok:
+            console.print(
+                f"[bold red]Failed to download part {idx}/{num_parts} "
+                f"({part_remote_name}). Cleaning up.[/bold red]"
+            )
+            _cleanup_split_file_artifacts(parts_dir, None)
+            return None
+
+        # Verify checksum of this part
+        checksum_ok = _verify_sha256_checksum(part_path, part_expected_checksum)
+        if not checksum_ok:
+            console.print(
+                f"[bold red]Checksum verification failed for part {idx}/{num_parts} "
+                f"({part_remote_name}). Cleaning up.[/bold red]"
+            )
+            _cleanup_split_file_artifacts(parts_dir, None)
+            return None
+
+        downloaded_part_paths.append(part_path)
+        console.print(
+            f"[green]Part {idx}/{num_parts} downloaded and verified successfully.[/green]"
+        )
+
+    console.print(
+        f"[green]All {num_parts} parts downloaded and verified successfully.[/green]"
+    )
+    return downloaded_part_paths
+
+
+def _reassemble_file_parts(
+    part_paths: List[pathlib.Path],
+    output_path: pathlib.Path,
+    description: str,
+) -> bool:
+    """Reassembles file parts in order into a single file.
+
+    Args:
+        part_paths: List of paths to part files, should be in correct order.
+        output_path: Path where the reassembled file should be written.
+        description: Description of the file for logging.
+
+    Returns:
+        True if reassembly was successful, False otherwise.
+    """
+    num_parts = len(part_paths)
+    console.print(
+        f"Reassembling [cyan]{description}[/cyan] from {num_parts} parts..."
+    )
+
+    try:
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(output_path, "wb") as outfile:
+            for idx, part_path in enumerate(part_paths, start=1):
+                if not part_path.exists():
+                    console.print(
+                        f"[bold red]Part {idx}/{num_parts} not found: {part_path}[/bold red]"
+                    )
+                    return False
+
+                console.print(
+                    f"  Adding part {idx}/{num_parts} ({part_path.name})..."
+                )
+                with open(part_path, "rb") as part_file:
+                    shutil.copyfileobj(part_file, outfile, length=8192)
+
+        console.print(
+            f"[green]Successfully reassembled {description} from {num_parts} parts.[/green]"
+        )
+        return True
+    except OSError as e:
+        console.print(
+            f"[bold red]Error reassembling {description}: {e}[/bold red]"
+        )
+        if output_path.exists():
+            output_path.unlink(missing_ok=True)
+        return False
+
+
+def _cleanup_split_file_artifacts(
+    parts_dir: pathlib.Path,
+    reassembled_path: Optional[pathlib.Path] = None,
+) -> None:
+    """Cleans up temporary artifacts from split file processing.
+
+    Args:
+        parts_dir: Directory containing downloaded parts (will be removed).
+        reassembled_path: Optional path to reassembled file to delete.
+    """
+    try:
+        # Delete reassembled file if provided
+        if reassembled_path and reassembled_path.exists():
+            reassembled_path.unlink(missing_ok=True)
+
+        # Delete parts directory and all contents
+        if parts_dir.exists():
+            shutil.rmtree(parts_dir, ignore_errors=True)
+    except OSError as e:
+        # Log but don't raise - cleanup errors shouldn't stop the process
+        console.print(
+            f"[yellow]Warning: Error during cleanup of split file artifacts: {e}[/yellow]"
+        )
+
+
 # --- CLI Command Functions ---
 
 
@@ -386,28 +575,40 @@ def fetch() -> None:
         expected_checksum = file_entry.get("sha256")
         expected_size_compressed = file_entry.get("size_bytes_compressed")
         assets_r2_path_prefix = version_info.get("assets_base_path_r2", "")
+        parts = file_entry.get("parts", [])
 
-        if not all([local_name, remote_name, expected_checksum]):
+        # Check if this is a split file
+        is_split_file = bool(parts)
+
+        # Validate file entry
+        if not local_name or not expected_checksum:
             console.print(
                 f"[bold red]Skipping invalid file entry in manifest: {file_entry}. "
-                "Missing name, remote name, or checksum.[/bold red]"
+                "Missing local_name or checksum.[/bold red]"
+            )
+            all_files_successful = False
+            continue
+
+        # For non-split files, remote_name is required (it's the actual remote filename)
+        # For split files, remote_name is optional - if missing, we derive it from local_name
+        # since the actual remote files are the parts (e.g., "file.gz.000", "file.gz.001")
+        if not is_split_file and not remote_name:
+            console.print(
+                f"[bold red]Skipping invalid file entry in manifest: {file_entry}. "
+                "Missing remote_name for non-split file.[/bold red]"
             )
             all_files_successful = False
             continue
 
         console.rule(f"[bold cyan]Processing: {local_name}[/bold cyan]")
+        if is_split_file:
+            console.print(
+                f"  [dim]This file is split into {len(parts)} parts[/dim]"
+            )
 
         final_local_path = local_version_dir / local_name
-        temp_download_path = local_version_dir / remote_name
 
-        remote_url = (
-            defaults.R2_ASSETS_BASE_URL.rstrip("/")
-            + "/"
-            + assets_r2_path_prefix.strip("/")
-            + "/"
-            + remote_name
-        )
-
+        # Skip if final file already exists
         if final_local_path.exists():
             console.print(
                 f"[yellow]'{local_name}' already exists at {final_local_path}. "
@@ -417,52 +618,145 @@ def fetch() -> None:
             )
             continue
 
-        if temp_download_path.exists():
-            temp_download_path.unlink(missing_ok=True)
-
-        download_ok = _download_file_with_progress(
-            remote_url,
-            temp_download_path,
-            description=local_name,
-            expected_size_bytes=expected_size_compressed,
-        )
-        if not download_ok:
-            all_files_successful = False
-            console.print(
-                f"[bold red]Failed to download {remote_name}. Halting for this file."
-                "[/bold red]"
+        # Handle split files
+        if is_split_file:
+            # Download all parts
+            parts_dir = local_version_dir / ".parts"
+            base_url = defaults.R2_ASSETS_BASE_URL.rstrip("/")
+            part_paths = _download_split_file_parts(
+                file_entry,
+                assets_r2_path_prefix,
+                local_version_dir,
+                base_url,
+                timeout=300,  # 5 minutes per part
             )
-            continue
 
-        checksum_ok = _verify_sha256_checksum(temp_download_path, expected_checksum)
-        if not checksum_ok:
-            all_files_successful = False
-            console.print(
-                f"[bold red]Checksum verification failed for {remote_name}. "
-                "Deleting downloaded file.[/bold red]"
-            )
-            temp_download_path.unlink(missing_ok=True)
-            continue
+            if not part_paths:
+                all_files_successful = False
+                console.print(
+                    f"[bold red]Failed to download parts for {local_name}. "
+                    "Halting for this file.[/bold red]"
+                )
+                continue
 
-        decompress_ok = _decompress_gzipped_file(temp_download_path, final_local_path)
-        if not decompress_ok:
-            all_files_successful = False
-            console.print(
-                f"[bold red]Failed to decompress {remote_name}. "
-                "Cleaning up temporary files.[/bold red]"
-            )
-            if final_local_path.exists():
-                final_local_path.unlink(missing_ok=True)
+            # Reassemble parts into temp file
+            # For split files, remote_name may not exist in manifest (it's not needed
+            # since parts are downloaded separately). Derive it from local_name.
+            reassembled_temp_name = remote_name if remote_name else f"{local_name}.gz"
+            temp_download_path = local_version_dir / reassembled_temp_name
             if temp_download_path.exists():
                 temp_download_path.unlink(missing_ok=True)
-            continue
 
-        if temp_download_path.exists():
-            temp_download_path.unlink()
-        console.print(
-            f"[green]Successfully installed and verified {local_name} to "
-            f"{final_local_path}[/green]\n"
-        )
+            reassemble_ok = _reassemble_file_parts(
+                part_paths, temp_download_path, local_name
+            )
+
+            if not reassemble_ok:
+                all_files_successful = False
+                console.print(
+                    f"[bold red]Failed to reassemble parts for {local_name}. "
+                    "Cleaning up.[/bold red]"
+                )
+                _cleanup_split_file_artifacts(parts_dir, temp_download_path)
+                continue
+
+            # Verify checksum of reassembled file
+            checksum_ok = _verify_sha256_checksum(
+                temp_download_path, expected_checksum
+            )
+            if not checksum_ok:
+                all_files_successful = False
+                console.print(
+                    f"[bold red]Checksum verification failed for reassembled "
+                    f"{local_name}. Cleaning up.[/bold red]"
+                )
+                _cleanup_split_file_artifacts(parts_dir, temp_download_path)
+                continue
+
+            # Decompress reassembled file
+            decompress_ok = _decompress_gzipped_file(
+                temp_download_path, final_local_path
+            )
+            if not decompress_ok:
+                all_files_successful = False
+                console.print(
+                    f"[bold red]Failed to decompress {local_name}. "
+                    "Cleaning up.[/bold red]"
+                )
+                _cleanup_split_file_artifacts(parts_dir, temp_download_path)
+                if final_local_path.exists():
+                    final_local_path.unlink(missing_ok=True)
+                continue
+
+            # Cleanup: delete parts and reassembled temp file
+            _cleanup_split_file_artifacts(parts_dir, temp_download_path)
+            console.print(
+                f"[green]Successfully installed and verified {local_name} to "
+                f"{final_local_path}[/green]\n"
+            )
+
+        else:
+            # Handle non-split files (existing logic)
+            temp_download_path = local_version_dir / remote_name
+
+            remote_url = (
+                defaults.R2_ASSETS_BASE_URL.rstrip("/")
+                + "/"
+                + assets_r2_path_prefix.strip("/")
+                + "/"
+                + remote_name
+            )
+
+            if temp_download_path.exists():
+                temp_download_path.unlink(missing_ok=True)
+
+            download_ok = _download_file_with_progress(
+                remote_url,
+                temp_download_path,
+                description=local_name,
+                expected_size_bytes=expected_size_compressed,
+            )
+            if not download_ok:
+                all_files_successful = False
+                console.print(
+                    f"[bold red]Failed to download {remote_name}. Halting for this file."
+                    "[/bold red]"
+                )
+                continue
+
+            checksum_ok = _verify_sha256_checksum(
+                temp_download_path, expected_checksum
+            )
+            if not checksum_ok:
+                all_files_successful = False
+                console.print(
+                    f"[bold red]Checksum verification failed for {remote_name}. "
+                    "Deleting downloaded file.[/bold red]"
+                )
+                temp_download_path.unlink(missing_ok=True)
+                continue
+
+            decompress_ok = _decompress_gzipped_file(
+                temp_download_path, final_local_path
+            )
+            if not decompress_ok:
+                all_files_successful = False
+                console.print(
+                    f"[bold red]Failed to decompress {remote_name}. "
+                    "Cleaning up temporary files.[/bold red]"
+                )
+                if final_local_path.exists():
+                    final_local_path.unlink(missing_ok=True)
+                if temp_download_path.exists():
+                    temp_download_path.unlink(missing_ok=True)
+                continue
+
+            if temp_download_path.exists():
+                temp_download_path.unlink()
+            console.print(
+                f"[green]Successfully installed and verified {local_name} to "
+                f"{final_local_path}[/green]\n"
+            )
 
     console.rule()
     if all_files_successful:
