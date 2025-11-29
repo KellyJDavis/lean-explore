@@ -52,10 +52,10 @@ pip install lean-xplore
 To use the remote API, you'll need an API key. API keys can be obtained from [https://www.leanexplore.com](https://www.leanexplore.com). Once you have your API key, configure it using:
 
 ```bash
-leanexplore configure api-key YOUR_API_KEY
+leanexplore configure api-key --api-key YOUR_API_KEY
 ```
 
-Alternatively, you can use the local backend without an API key (see [Local Backend](#local-backend) below).
+Alternatively, you can run `leanexplore configure api-key` without arguments and it will prompt you for the key, or use the local backend without an API key (see [Local Backend](#local-backend) below).
 
 ### Command Line
 
@@ -66,18 +66,13 @@ Search for Lean declarations:
 leanexplore search "natural numbers"
 
 # Search with package filters (limit results to specific packages)
-leanexplore search "monoid" --pkg Mathlib --pkg Batteries
+leanexplore search "monoid" --package Mathlib --package Batteries
 
 # Limit the number of results
 leanexplore search "topology" --limit 5
 ```
 
-The CLI will automatically use your configured API key, or you can use the local backend:
-
-```bash
-# Use local backend (no API key needed)
-leanexplore search "natural numbers" --backend local
-```
+The CLI will automatically use your configured API key. Note: The search command does not support a `--backend` flag. To use the local backend, you need to run a local HTTP server (see [Local Backend](#local-backend) below) and configure the client to use it.
 
 ### Python API
 
@@ -93,9 +88,10 @@ async def main():
     results = await client.search("natural numbers")
     
     # Display results
-    print(f"Found {len(results.items)} results")
-    for item in results.items[:5]:
-        print(f"{item.primary_declaration.lean_name}: {item.informal_name}")
+    print(f"Found {len(results.results)} results")
+    for item in results.results[:5]:
+        lean_name = item.primary_declaration.lean_name if item.primary_declaration else "N/A"
+        print(f"{lean_name}")
         if item.informal_description:
             print(f"  {item.informal_description[:100]}...")
 
@@ -117,7 +113,7 @@ async def main():
     
     for result in results:
         print(f"\nQuery: {result.query}")
-        print(f"Results: {len(result.items)}")
+        print(f"Results: {len(result.results)}")
 
 asyncio.run(main())
 ```
@@ -131,19 +127,24 @@ Run searches locally without an API key. This is useful for offline access, fast
 leanexplore data fetch
 
 # Start local HTTP server
-leanexplore http start --backend local
+leanexplore http serve --backend local
 ```
 
-The server will be available at `http://localhost:8000`. You can query it via HTTP or use the Python client:
+The server will be available at `http://localhost:8001/api/v1` (default port is 8001). You can query it via HTTP or use the Python client:
 
 ```python
+import asyncio
 from lean_explore.api.client import Client
 
-# Connect to local server
-client = Client(base_url="http://localhost:8000")
+async def main():
+    # Connect to local server
+    client = Client(base_url="http://localhost:8001/api/v1")
+    
+    # Use as normal (no API key needed)
+    results = await client.search("natural numbers")
+    print(f"Found {len(results.results)} results")
 
-# Use as normal (no API key needed)
-results = await client.search("natural numbers")
+asyncio.run(main())
 ```
 
 ### Additional Features
@@ -151,19 +152,19 @@ results = await client.search("natural numbers")
 - **MCP Server**: Integrate with AI agents using the Model Context Protocol
 
   ```bash
-  leanexplore mcp start --backend api --api-key YOUR_API_KEY
+  leanexplore mcp serve --backend api --api-key YOUR_API_KEY
   ```
 
 - **HTTP Server**: Run your own API server
 
   ```bash
-  leanexplore http start --backend local
+  leanexplore http serve --backend local
   ```
 
 - **AI Chat**: Interact with an AI agent that can search Lean code
 
   ```bash
-  leanexplore chat --backend api --api-key YOUR_API_KEY
+  leanexplore chat --backend api --lean-api-key YOUR_API_KEY
   ```
 
 ## Documentation
