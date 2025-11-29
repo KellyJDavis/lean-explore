@@ -36,6 +36,9 @@ LEAN_EXPLORE_TOOLCHAINS_BASE_DIR: Final[pathlib.Path] = (
 # For now, it's set to the initial version of data provided ("0.1.0").
 DEFAULT_ACTIVE_TOOLCHAIN_VERSION: Final[str] = "0.2.0"
 
+# Latest manifest version used when generating new manifests.
+LATEST_MANIFEST_VERSION: Final[str] = "0.3.0"
+
 # Path to the data directory for the currently active toolchain version.
 # Example: ~/.lean_explore/data/toolchains/0.1.0/
 _ACTIVE_TOOLCHAIN_VERSION_DATA_PATH: Final[pathlib.Path] = (
