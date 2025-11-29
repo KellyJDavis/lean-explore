@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 N/A
 
+## [0.4.2] - 2025-11-29
+
+### Added
+- **Split File Support**: Added automatic file splitting for compressed files exceeding 1.8GB to work around GitHub's 2GB per-asset limit. The `leanexplore data fetch` command now automatically downloads and reassembles split files with per-part checksum verification. Split files are named with `.000`, `.001`, `.002` suffixes and include metadata in the manifest.
+- **CI/CD Workflow**: Added GitHub Actions workflow that runs tests on pull requests and pushes to the main branch, ensuring all tests (including slow, integration, and external tests) pass before code is merged.
+
+### Changed
+- **Manifest Version Handling**: Refactored manifest generation to separate `latest_manifest_version` from `default_toolchain`, providing more flexibility in version management. The `generate_manifest.py` script now uses `--latest-manifest-version` and `--default-toolchain` parameters instead of a single `--version` parameter.
+
+### Fixed
+- **Documentation**: Fixed numerous documentation errors across all user guides and API references, including incorrect CLI commands (`http start` → `http serve`, `mcp start` → `mcp serve`), incorrect flags (`--pkg` → `--package`, removed non-existent `--log-level`), incorrect default values (port 8000 → 8001, limit 10 → 5), incorrect API field names (`results.items` → `results.results`, `item.informal_name` → `item.informal_description`), and incorrect method names (`get_citations()` → `get_dependencies()`).
+- **Code Quality**: Fixed linting errors across the codebase.
+
 ## [0.4.1] - 2025-11-28
 
 ### Fixed
