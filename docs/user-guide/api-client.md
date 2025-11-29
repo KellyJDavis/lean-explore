@@ -13,7 +13,7 @@ from lean_explore.api.client import Client
 client = Client(api_key="your-api-key")
 
 # With custom base URL (for local servers)
-client = Client(base_url="http://localhost:8000")
+client = Client(base_url="http://localhost:8001")
 
 # Both API key and custom URL
 client = Client(
@@ -31,8 +31,8 @@ async def main():
     client = Client(api_key="your-api-key")
     results = await client.search("natural numbers")
     
-    print(f"Found {len(results.items)} results")
-    for item in results.items:
+    print(f"Found {len(results.results)} results")
+    for item in results.results:
         print(f"- {item.primary_declaration.lean_name}")
 
 asyncio.run(main())
@@ -49,7 +49,7 @@ async def main():
     
     for result in results:
         print(f"Query: {result.query}")
-        print(f"Results: {len(result.items)}\n")
+        print(f"Results: {len(result.results)}\n")
 
 asyncio.run(main())
 ```
@@ -68,7 +68,7 @@ async def main():
         package_filters=["Mathlib", "Batteries"]
     )
     
-    for item in results.items:
+    for item in results.results:
         print(f"{item.primary_declaration.lean_name}")
 
 asyncio.run(main())
@@ -82,14 +82,16 @@ async def main():
     
     # Search first
     search_results = await client.search("natural numbers")
-    first_result = search_results.items[0]
-    
-    # Get citations for a result
-    citations = await client.get_citations(first_result.id)
-    
-    print(f"Citations for {first_result.primary_declaration.lean_name}:")
-    for citation in citations.citations:
-        print(f"- {citation.lean_name}")
+    if search_results.results:
+        first_result = search_results.results[0]
+        
+        # Get dependencies (citations) for a result
+        dependencies = await client.get_dependencies(first_result.id)
+        
+        if dependencies:
+            print(f"Dependencies for {first_result.primary_declaration.lean_name}:")
+            for citation in dependencies.citations:
+                print(f"- {citation.primary_declaration.lean_name}")
 
 asyncio.run(main())
 ```
@@ -123,38 +125,34 @@ results: APISearchResponse = await client.search("query")
 
 # Access properties
 results.query  # The search query
-results.items  # List of APISearchResultItem
+results.results  # List of APISearchResultItem
 ```
 
 ### APISearchResultItem
 
 ```python
-item = results.items[0]
+item = results.results[0]
 
 # Primary declaration
 item.primary_declaration.lean_name
-item.primary_declaration.decl_type
 
 # Informal description
-item.informal_name
 item.informal_description
 
 # Statement group ID
 item.id
 
-# Score
-item.score
 ```
 
 ### APICitationsResponse
 
 ```python
-citations = await client.get_citations(item_id)
+dependencies = await client.get_dependencies(item_id)
 
-# List of citations
-for citation in citations.citations:
-    print(citation.lean_name)
-    print(citation.decl_type)
+# List of dependencies (citations)
+if dependencies:
+    for citation in dependencies.citations:
+        print(citation.primary_declaration.lean_name)
 ```
 
 ## Configuration

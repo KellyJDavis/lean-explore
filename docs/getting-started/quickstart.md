@@ -25,7 +25,7 @@ leanexplore configure api-key YOUR_API_KEY
 Filter results to specific packages:
 
 ```bash
-leanexplore search "monoid" --pkg Mathlib --pkg Batteries
+leanexplore search "monoid" --package Mathlib --package Batteries
 ```
 
 ## Using Python API
@@ -44,8 +44,10 @@ async def main():
     results = await client.search("natural numbers")
     
     # Print results
-    for item in results.items[:5]:  # Top 5 results
-        print(f"{item.primary_declaration.lean_name}: {item.informal_name}")
+    for item in results.results[:5]:  # Top 5 results
+        lean_name = item.primary_declaration.lean_name
+        informal = item.informal_description or "No description"
+        print(f"{lean_name}: {informal}")
 
 asyncio.run(main())
 ```
@@ -65,7 +67,7 @@ async def main():
     
     for result in results:
         print(f"Query: {result.query}")
-        print(f"Found {len(result.items)} results\n")
+        print(f"Found {len(result.results)} results\n")
 
 asyncio.run(main())
 ```
@@ -79,21 +81,21 @@ asyncio.run(main())
 leanexplore data fetch
 
 # Start the server
-leanexplore http start --backend local
+leanexplore http serve --backend local
 ```
 
-The server will be available at `http://localhost:8000`.
+The server will be available at `http://localhost:8001`.
 
 ### Query the Local Server
 
 ```bash
-curl "http://localhost:8000/api/v1/search?q=natural+numbers"
+curl "http://localhost:8001/api/v1/search?q=natural+numbers"
 ```
 
 Or use the Python client with a custom base URL:
 
 ```python
-client = Client(base_url="http://localhost:8000")
+client = Client(base_url="http://localhost:8001")
 results = await client.search("natural numbers")
 ```
 
@@ -102,7 +104,7 @@ results = await client.search("natural numbers")
 The MCP (Model Context Protocol) server allows AI agents to interact with Lean Explore:
 
 ```bash
-leanexplore mcp start --backend api --api-key YOUR_API_KEY
+leanexplore mcp serve --backend api --api-key YOUR_API_KEY
 ```
 
 ## Next Steps

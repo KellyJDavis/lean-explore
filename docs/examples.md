@@ -12,9 +12,10 @@ async def main():
     client = Client(api_key="your-api-key")
     results = await client.search("natural numbers")
     
-    for item in results.items[:5]:
+    for item in results.results[:5]:
         print(f"{item.primary_declaration.lean_name}")
-        print(f"  {item.informal_name}")
+        if item.informal_description:
+            print(f"  {item.informal_description}")
         print()
 
 asyncio.run(main())
@@ -34,8 +35,8 @@ async def main():
         package_filters=["Mathlib", "Batteries"]
     )
     
-    print(f"Found {len(results.items)} results in Mathlib and Batteries")
-    for item in results.items:
+    print(f"Found {len(results.results)} results in Mathlib and Batteries")
+    for item in results.results:
         print(f"- {item.primary_declaration.lean_name}")
 
 asyncio.run(main())
@@ -60,8 +61,8 @@ async def main():
     
     for result in results:
         print(f"\nQuery: {result.query}")
-        print(f"Results: {len(result.items)}")
-        for item in result.items[:3]:
+        print(f"Results: {len(result.results)}")
+        for item in result.results[:3]:
             print(f"  - {item.primary_declaration.lean_name}")
 
 asyncio.run(main())
@@ -78,15 +79,16 @@ async def main():
     
     # Search first
     search_results = await client.search("Nat")
-    if search_results.items:
-        first_result = search_results.items[0]
+    if search_results.results:
+        first_result = search_results.results[0]
         
-        # Get citations
-        citations = await client.get_citations(first_result.id)
+        # Get dependencies (citations)
+        dependencies = await client.get_dependencies(first_result.id)
         
-        print(f"Citations for {first_result.primary_declaration.lean_name}:")
-        for citation in citations.citations:
-            print(f"  - {citation.lean_name}")
+        if dependencies:
+            print(f"Dependencies for {first_result.primary_declaration.lean_name}:")
+            for citation in dependencies.citations:
+                print(f"  - {citation.primary_declaration.lean_name}")
 
 asyncio.run(main())
 ```
@@ -104,8 +106,8 @@ async def main():
     # Search
     results = await service.search("natural numbers")
     
-    print(f"Found {len(results.items)} results")
-    for item in results.items[:5]:
+    print(f"Found {len(results.results)} results")
+    for item in results.results[:5]:
         print(f"- {item.primary_declaration.lean_name}")
 
 asyncio.run(main())
@@ -119,12 +121,12 @@ from lean_explore.api.client import Client
 
 async def main():
     # Connect to local server
-    client = Client(base_url="http://localhost:8000")
+    client = Client(base_url="http://localhost:8001")
     
     # Use as normal
     results = await client.search("natural numbers")
     
-    for item in results.items:
+    for item in results.results:
         print(item.primary_declaration.lean_name)
 
 asyncio.run(main())
@@ -142,7 +144,7 @@ async def main():
     
     try:
         results = await client.search("natural numbers")
-        print(f"Found {len(results.items)} results")
+        print(f"Found {len(results.results)} results")
     except httpx.HTTPStatusError as e:
         print(f"HTTP error: {e.response.status_code}")
         print(f"Response: {e.response.text}")
@@ -168,7 +170,7 @@ async def main():
     )
     
     results = await client.search("natural numbers")
-    print(f"Found {len(results.items)} results")
+    print(f"Found {len(results.results)} results")
 
 asyncio.run(main())
 ```

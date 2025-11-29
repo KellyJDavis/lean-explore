@@ -7,7 +7,7 @@ Run a local HTTP server that provides the same API as the remote Lean Explore se
 ### Using API Backend
 
 ```bash
-leanexplore http start --backend api --api-key YOUR_API_KEY
+leanexplore http serve --backend api --api-key YOUR_API_KEY
 ```
 
 This starts a server that proxies requests to the remote API.
@@ -19,14 +19,14 @@ This starts a server that proxies requests to the remote API.
 leanexplore data fetch
 
 # Start server with local backend
-leanexplore http start --backend local
+leanexplore http serve --backend local
 ```
 
 ### Custom Configuration
 
 ```bash
 # Custom host and port
-leanexplore http start --backend local --host 0.0.0.0 --port 8080
+leanexplore http serve --backend local --host 0.0.0.0 --port 8080
 ```
 
 ## API Endpoints
@@ -46,7 +46,7 @@ GET /api/v1/search?q=QUERY&pkg=PACKAGE
 **Example:**
 
 ```bash
-curl "http://localhost:8000/api/v1/search?q=natural+numbers"
+curl "http://localhost:8001/api/v1/search?q=natural+numbers"
 ```
 
 **Response:**
@@ -54,43 +54,44 @@ curl "http://localhost:8000/api/v1/search?q=natural+numbers"
 ```json
 {
   "query": "natural numbers",
-  "items": [
+  "results": [
     {
       "id": 123,
       "primary_declaration": {
-        "lean_name": "Nat",
-        "decl_type": "structure"
+        "lean_name": "Nat"
       },
-      "informal_name": "Natural numbers",
-      "informal_description": "...",
-      "score": 0.95
+      "informal_description": "..."
     }
   ]
 }
 ```
 
-### Get Citations
+### Get Dependencies
 
 ```bash
-GET /api/v1/citations/{item_id}
+GET /api/v1/statement_groups/{group_id}/dependencies
 ```
 
 **Example:**
 
 ```bash
-curl "http://localhost:8000/api/v1/citations/123"
+curl "http://localhost:8001/api/v1/statement_groups/123/dependencies"
 ```
 
 **Response:**
 
 ```json
 {
+  "source_group_id": 123,
   "citations": [
     {
-      "lean_name": "Nat.add",
-      "decl_type": "def"
+      "id": 456,
+      "primary_declaration": {
+        "lean_name": "Nat.add"
+      }
     }
-  ]
+  ],
+  "count": 1
 }
 ```
 
@@ -102,7 +103,7 @@ You can use the Python client with a local server:
 from lean_explore.api.client import Client
 
 # Connect to local server
-client = Client(base_url="http://localhost:8000")
+client = Client(base_url="http://localhost:8001")
 
 # Use as normal
 results = await client.search("natural numbers")
@@ -112,9 +113,9 @@ results = await client.search("natural numbers")
 
 The server provides OpenAPI documentation at:
 
-- Swagger UI: `http://localhost:8000/docs`
-- ReDoc: `http://localhost:8000/redoc`
-- OpenAPI JSON: `http://localhost:8000/openapi.json`
+- Swagger UI: `http://localhost:8001/docs`
+- ReDoc: `http://localhost:8001/redoc`
+- OpenAPI JSON: `http://localhost:8001/openapi.json`
 
 ## Backend Comparison
 

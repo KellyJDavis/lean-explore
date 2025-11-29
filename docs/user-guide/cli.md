@@ -21,8 +21,8 @@ leanexplore search QUERY [OPTIONS]
 ```
 
 **Options:**
-- `--pkg, -p`: Filter by package name (can be specified multiple times)
-- `--limit, -n`: Maximum number of results (default: 10)
+- `--package, -p`: Filter by package name (can be specified multiple times)
+- `--limit, -n`: Maximum number of results (default: 5)
 
 **Examples:**
 
@@ -31,10 +31,10 @@ leanexplore search QUERY [OPTIONS]
 leanexplore search "natural numbers"
 
 # Search with package filter
-leanexplore search "monoid" --pkg Mathlib
+leanexplore search "monoid" --package Mathlib
 
 # Multiple package filters
-leanexplore search "group" --pkg Mathlib --pkg Batteries
+leanexplore search "group" --package Mathlib --package Batteries
 
 # Limit results
 leanexplore search "topology" --limit 5
@@ -50,21 +50,17 @@ leanexplore configure COMMAND
 
 **Subcommands:**
 
-- `api-key KEY`: Set API key for remote API
-- `show`: Display current configuration
-- `reset`: Reset configuration to defaults
+- `api-key`: Set API key for remote API (prompts if not provided)
+- `openai-key`: Set OpenAI API key for chat functionality (prompts if not provided)
 
 **Examples:**
 
 ```bash
-# Set API key
+# Set API key (will prompt if not provided)
 leanexplore configure api-key YOUR_API_KEY
 
-# View configuration
-leanexplore configure show
-
-# Reset configuration
-leanexplore configure reset
+# Set OpenAI API key (will prompt if not provided)
+leanexplore configure openai-key YOUR_OPENAI_API_KEY
 ```
 
 ### HTTP Server
@@ -72,26 +68,26 @@ leanexplore configure reset
 Start a local HTTP server:
 
 ```bash
-leanexplore http start [OPTIONS]
+leanexplore http serve [OPTIONS]
 ```
 
 **Options:**
-- `--backend`: Backend type (`api` or `local`)
+- `--backend, -b`: Backend type (`api` or `local`, default: `local`)
 - `--api-key`: API key (required for `api` backend)
-- `--host`: Host to bind to (default: `127.0.0.1`)
-- `--port`: Port to bind to (default: `8000`)
+- `--host`: Host to bind to (default: `localhost`)
+- `--port`: Port to bind to (default: `8001`)
 
 **Examples:**
 
 ```bash
 # Start with API backend
-leanexplore http start --backend api --api-key YOUR_API_KEY
+leanexplore http serve --backend api --api-key YOUR_API_KEY
 
 # Start with local backend
-leanexplore http start --backend local
+leanexplore http serve --backend local
 
 # Custom host and port
-leanexplore http start --backend local --host 0.0.0.0 --port 8080
+leanexplore http serve --backend local --host 0.0.0.0 --port 8080
 ```
 
 ### MCP Server
@@ -99,22 +95,21 @@ leanexplore http start --backend local --host 0.0.0.0 --port 8080
 Start the Model Context Protocol server:
 
 ```bash
-leanexplore mcp start [OPTIONS]
+leanexplore mcp serve [OPTIONS]
 ```
 
 **Options:**
-- `--backend`: Backend type (`api` or `local`)
+- `--backend, -b`: Backend type (`api` or `local`, default: `api`)
 - `--api-key`: API key (required for `api` backend)
-- `--log-level`: Logging level (default: `INFO`)
 
 **Examples:**
 
 ```bash
 # Start with API backend
-leanexplore mcp start --backend api --api-key YOUR_API_KEY
+leanexplore mcp serve --backend api --api-key YOUR_API_KEY
 
 # Start with local backend
-leanexplore mcp start --backend local
+leanexplore mcp serve --backend local
 ```
 
 ### Data Management
@@ -128,8 +123,7 @@ leanexplore data COMMAND
 **Subcommands:**
 
 - `fetch`: Download local data files
-- `list`: List available data toolchains
-- `status`: Check data status
+- `clean`: Remove all downloaded local data toolchains
 
 **Examples:**
 
@@ -137,11 +131,8 @@ leanexplore data COMMAND
 # Fetch local data
 leanexplore data fetch
 
-# List available toolchains
-leanexplore data list
-
-# Check data status
-leanexplore data status
+# Clean all downloaded data
+leanexplore data clean
 ```
 
 ### Chat
@@ -153,21 +144,24 @@ leanexplore chat [OPTIONS]
 ```
 
 **Options:**
-- `--model`: Model to use (default: `gpt-4`)
-- `--backend`: Backend type (`api` or `local`)
-- `--api-key`: API key (required for `api` backend)
+- `--backend, -lb`: Backend type (`api` or `local`, default: `api`)
+- `--lean-api-key`: API key for Lean Explore (if `api` backend, overrides env var/config)
+- `--debug`: Enable detailed debug logging
 
 **Examples:**
 
 ```bash
-# Start chat session
+# Start chat session (uses API backend by default)
 leanexplore chat
-
-# Use specific model
-leanexplore chat --model gpt-4-turbo
 
 # Use local backend
 leanexplore chat --backend local
+
+# Use API backend with explicit API key
+leanexplore chat --backend api --lean-api-key YOUR_API_KEY
+
+# Enable debug logging
+leanexplore chat --debug
 ```
 
 ## Global Options
@@ -188,10 +182,10 @@ leanexplore search "natural numbers"
 
 # 3. Start local server
 leanexplore data fetch
-leanexplore http start --backend local
+leanexplore http serve --backend local
 
 # 4. Query the server
-curl "http://localhost:8000/api/v1/search?q=natural+numbers"
+curl "http://localhost:8001/api/v1/search?q=natural+numbers"
 ```
 
 ## Next Steps
