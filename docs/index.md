@@ -51,7 +51,7 @@ leanexplore search "natural numbers"
 leanexplore configure api-key YOUR_API_KEY
 
 # Start local HTTP server
-leanexplore http start --backend local
+leanexplore http serve --backend local
 ```
 
 ### Python API
@@ -67,10 +67,10 @@ results = await client.search("natural numbers")
 
 ```bash
 # Start server
-leanexplore http start --backend local
+leanexplore http serve --backend local
 
 # Query via HTTP
-curl "http://localhost:8000/api/v1/search?q=natural+numbers"
+curl "http://localhost:8001/api/v1/search?q=natural+numbers"
 ```
 
 ## Documentation Structure

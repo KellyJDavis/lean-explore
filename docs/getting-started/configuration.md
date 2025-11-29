@@ -14,17 +14,15 @@ leanexplore configure api-key YOUR_API_KEY
 
 The API key is stored in your user configuration directory and will be used for all API requests.
 
-### View Current Configuration
+### OpenAI API Key
+
+Set your OpenAI API key for chat functionality:
 
 ```bash
-leanexplore configure show
+leanexplore configure openai-key YOUR_OPENAI_API_KEY
 ```
 
-### Reset Configuration
-
-```bash
-leanexplore configure reset
-```
+The OpenAI API key is stored in your user configuration directory and will be used for chat sessions.
 
 ## Environment Variables
 
@@ -41,7 +39,7 @@ export LEAN_EXPLORE_API_KEY=your-api-key
 For local servers or custom endpoints:
 
 ```bash
-export LEAN_EXPLORE_BASE_URL=http://localhost:8000
+export LEAN_EXPLORE_BASE_URL=http://localhost:8001
 ```
 
 ## Python Configuration
@@ -104,30 +102,30 @@ service = Service(
 
 ```bash
 # Use remote API backend
-leanexplore http start --backend api --api-key YOUR_API_KEY
+leanexplore http serve --backend api --api-key YOUR_API_KEY
 
 # Use local backend
-leanexplore http start --backend local
+leanexplore http serve --backend local
 ```
 
 ### Port and Host
 
 ```bash
 # Custom port
-leanexplore http start --backend local --port 8080
+leanexplore http serve --backend local --port 8080
 
 # Custom host
-leanexplore http start --backend local --host 0.0.0.0
+leanexplore http serve --backend local --host 0.0.0.0
 ```
 
 ## MCP Server Configuration
 
 ```bash
 # API backend
-leanexplore mcp start --backend api --api-key YOUR_API_KEY
+leanexplore mcp serve --backend api --api-key YOUR_API_KEY
 
 # Local backend
-leanexplore mcp start --backend local
+leanexplore mcp serve --backend local
 ```
 
 ## Configuration Files

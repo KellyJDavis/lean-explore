@@ -11,7 +11,7 @@ MCP is a protocol that enables AI assistants to access external tools and data s
 ### Using API Backend
 
 ```bash
-leanexplore mcp start --backend api --api-key YOUR_API_KEY
+leanexplore mcp serve --backend api --api-key YOUR_API_KEY
 ```
 
 ### Using Local Backend
@@ -21,13 +21,13 @@ leanexplore mcp start --backend api --api-key YOUR_API_KEY
 leanexplore data fetch
 
 # Start MCP server
-leanexplore mcp start --backend local
+leanexplore mcp serve --backend local
 ```
 
 ### Custom Logging
 
 ```bash
-leanexplore mcp start --backend local --log-level DEBUG
+leanexplore mcp serve --backend local
 ```
 
 ## Available Tools
@@ -46,10 +46,11 @@ Search for Lean declarations using natural language queries.
 
 ```json
 {
-  "name": "lean_explore_search",
+  "name": "search",
   "arguments": {
     "query": "natural numbers",
-    "package_filters": ["Mathlib"]
+    "package_filters": ["Mathlib"],
+    "limit": 10
   }
 }
 ```
@@ -59,33 +60,33 @@ Search for Lean declarations using natural language queries.
 Retrieve detailed information about a specific statement group.
 
 **Parameters:**
-- `statement_group_id` (integer, required): The ID of the statement group
+- `group_id` (integer or list of integers, required): The ID(s) of the statement group(s)
 
 **Example:**
 
 ```json
 {
-  "name": "lean_explore_get_statement_group",
+  "name": "get_by_id",
   "arguments": {
-    "statement_group_id": 123
+    "group_id": 123
   }
 }
 ```
 
-### Get Citations
+### Get Dependencies
 
-Get declarations that cite a specific statement group.
+Get dependencies (citations) for a specific statement group.
 
 **Parameters:**
-- `statement_group_id` (integer, required): The ID of the statement group
+- `group_id` (integer or list of integers, required): The ID(s) of the statement group(s)
 
 **Example:**
 
 ```json
 {
-  "name": "lean_explore_get_citations",
+  "name": "get_dependencies",
   "arguments": {
-    "statement_group_id": 123
+    "group_id": 123
   }
 }
 ```
@@ -101,7 +102,7 @@ Add to your Claude Desktop configuration:
   "mcpServers": {
     "lean-explore": {
       "command": "leanexplore",
-      "args": ["mcp", "start", "--backend", "api", "--api-key", "YOUR_API_KEY"]
+      "args": ["mcp", "serve", "--backend", "api", "--api-key", "YOUR_API_KEY"]
     }
   }
 }

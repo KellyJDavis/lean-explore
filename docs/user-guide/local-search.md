@@ -23,7 +23,7 @@ This downloads:
 Check that data is available:
 
 ```bash
-leanexplore data status
+# Data status can be checked by attempting to use the local backend
 ```
 
 ## Using Local Backend
@@ -31,8 +31,7 @@ leanexplore data status
 ### CLI
 
 ```bash
-# Search using local backend
-leanexplore search "natural numbers" --backend local
+# Search using local backend (CLI always uses API backend, use HTTP server for local)
 ```
 
 ### Python API
@@ -47,7 +46,7 @@ service = Service()
 results = await service.search("natural numbers")
 
 # Process results
-for item in results.items:
+for item in results.results:
     print(item.primary_declaration.lean_name)
 ```
 
@@ -55,13 +54,13 @@ for item in results.items:
 
 ```bash
 # Start server with local backend
-leanexplore http start --backend local
+leanexplore http serve --backend local
 ```
 
 Then query via HTTP:
 
 ```bash
-curl "http://localhost:8000/api/v1/search?q=natural+numbers"
+curl "http://localhost:8001/api/v1/search?q=natural+numbers"
 ```
 
 ## Configuration
