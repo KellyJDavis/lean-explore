@@ -199,7 +199,7 @@ def split_file(
     ]
 
     try:
-        result = subprocess.run(
+        subprocess.run(
             cmd, capture_output=True, text=True, check=True, timeout=3600
         )
     except subprocess.CalledProcessError as e:
@@ -207,7 +207,7 @@ def split_file(
         logger.error(f"Command output: {e.stderr}")
         raise
     except subprocess.TimeoutExpired:
-        logger.error(f"Split command timed out after 1 hour")
+        logger.error("Split command timed out after 1 hour")
         raise
 
     # Find all generated parts (sorted naturally)
@@ -227,7 +227,8 @@ def split_file(
             f"No split parts found with numeric suffixes after splitting {input_path}"
         )
 
-    logger.info(f"Created {len(numeric_parts)} parts: {[p.name for p in numeric_parts]}")
+    parts_names = [p.name for p in numeric_parts]
+    logger.info(f"Created {len(numeric_parts)} parts: {parts_names}")
     return numeric_parts
 
 
@@ -447,7 +448,8 @@ def generate_manifest(
     # Validate required parameters
     if not latest_manifest_version or not isinstance(latest_manifest_version, str):
         raise ValueError(
-            f"latest_manifest_version must be a non-empty string, got: {latest_manifest_version!r}"
+            f"latest_manifest_version must be a non-empty string, "
+            f"got: {latest_manifest_version!r}"
         )
     if not default_toolchain or not isinstance(default_toolchain, str):
         raise ValueError(
@@ -558,15 +560,21 @@ def parse_arguments() -> argparse.Namespace:
         "--default-toolchain",
         type=str,
         default=defaults.DEFAULT_ACTIVE_TOOLCHAIN_VERSION,
-        help=f"Default toolchain version string (e.g., '0.2.0'). "
-        f"This will be used as the key in the 'toolchains' dict and the value of "
-        f"'default_toolchain'. Defaults to {defaults.DEFAULT_ACTIVE_TOOLCHAIN_VERSION}.",
+        help=(
+            f"Default toolchain version string (e.g., '0.2.0'). "
+            f"This will be used as the key in the 'toolchains' dict and the "
+            f"value of 'default_toolchain'. Defaults to "
+            f"{defaults.DEFAULT_ACTIVE_TOOLCHAIN_VERSION}."
+        ),
     )
     parser.add_argument(
         "--description",
         type=str,
         default=None,
-        help="Description of this toolchain version. Defaults to 'v{default_toolchain}'.",
+        help=(
+            "Description of this toolchain version. "
+            "Defaults to 'v{default_toolchain}'."
+        ),
     )
     parser.add_argument(
         "--release-date",

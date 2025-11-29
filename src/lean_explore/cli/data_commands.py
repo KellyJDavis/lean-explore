@@ -322,8 +322,8 @@ def _download_split_file_parts(
         assets_r2_path_prefix: The assets base path prefix from the manifest.
         local_version_dir: Directory where parts should be downloaded.
         base_url: Base URL for downloading assets.
-        timeout: Request timeout in seconds for each download. Defaults to 300 (5 minutes)
-            to accommodate large parts.
+        timeout: Request timeout in seconds for each download.
+            Defaults to 300 (5 minutes) to accommodate large parts.
 
     Returns:
         List of paths to downloaded part files in order, or None on failure.
@@ -331,7 +331,8 @@ def _download_split_file_parts(
     parts = file_entry.get("parts", [])
     if not parts:
         console.print(
-            "[bold red]Split file entry has no 'parts' array. Cannot download.[/bold red]"
+            "[bold red]Split file entry has no 'parts' array. "
+            "Cannot download.[/bold red]"
         )
         return None
 
@@ -414,7 +415,8 @@ def _download_split_file_parts(
 
         downloaded_part_paths.append(part_path)
         console.print(
-            f"[green]Part {idx}/{num_parts} downloaded and verified successfully.[/green]"
+            f"[green]Part {idx}/{num_parts} downloaded and verified "
+            "successfully.[/green]"
         )
 
     console.print(
@@ -449,7 +451,8 @@ def _reassemble_file_parts(
             for idx, part_path in enumerate(part_paths, start=1):
                 if not part_path.exists():
                     console.print(
-                        f"[bold red]Part {idx}/{num_parts} not found: {part_path}[/bold red]"
+                        f"[bold red]Part {idx}/{num_parts} not found: "
+                        f"{part_path}[/bold red]"
                     )
                     return False
 
@@ -460,7 +463,8 @@ def _reassemble_file_parts(
                     shutil.copyfileobj(part_file, outfile, length=8192)
 
         console.print(
-            f"[green]Successfully reassembled {description} from {num_parts} parts.[/green]"
+            f"[green]Successfully reassembled {description} from "
+            f"{num_parts} parts.[/green]"
         )
         return True
     except OSError as e:
@@ -493,7 +497,8 @@ def _cleanup_split_file_artifacts(
     except OSError as e:
         # Log but don't raise - cleanup errors shouldn't stop the process
         console.print(
-            f"[yellow]Warning: Error during cleanup of split file artifacts: {e}[/yellow]"
+            f"[yellow]Warning: Error during cleanup of split file "
+            f"artifacts: {e}[/yellow]"
         )
 
 
@@ -590,8 +595,9 @@ def fetch() -> None:
             continue
 
         # For non-split files, remote_name is required (it's the actual remote filename)
-        # For split files, remote_name is optional - if missing, we derive it from local_name
-        # since the actual remote files are the parts (e.g., "file.gz.000", "file.gz.001")
+        # For split files, remote_name is optional - if missing, we derive it from
+        # local_name since the actual remote files are the parts
+        # (e.g., "file.gz.000", "file.gz.001")
         if not is_split_file and not remote_name:
             console.print(
                 f"[bold red]Skipping invalid file entry in manifest: {file_entry}. "
@@ -719,8 +725,8 @@ def fetch() -> None:
             if not download_ok:
                 all_files_successful = False
                 console.print(
-                    f"[bold red]Failed to download {remote_name}. Halting for this file."
-                    "[/bold red]"
+                    f"[bold red]Failed to download {remote_name}. "
+                    "Halting for this file.[/bold red]"
                 )
                 continue
 
